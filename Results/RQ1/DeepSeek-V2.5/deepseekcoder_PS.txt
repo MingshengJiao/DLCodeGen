@@ -1,0 +1,4062 @@
+```python
+import tensorflow as tf
+from tensorflow.keras.applications import InceptionV3
+from tensorflow.keras.layers import Input, Flatten, Reshape, LSTM, Dense
+from tensorflow.keras.models import Model
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from sklearn.model_selection import train_test_split
+
+# Dataset Preparation
+# Assuming you have your dataset in a directory structure like:
+# dataset/
+# ├── train/
+# │   ├── violence/
+# │   └── non-violence/
+# ├── validation/
+# │   ├── violence/
+# │   └── non-violence/
+# └── test/
+#     ├── violence/
+#     └── non-violence/
+
+# ImageDataGenerator for preprocessing
+datagen = ImageDataGenerator(rescale=1./255)
+
+# Load and preprocess the dataset
+train_generator = datagen.flow_from_directory(
+    'dataset/train',
+    target_size=(224, 224),
+    batch_size=32,
+    class_mode='categorical'
+)
+
+validation_generator = datagen.flow_from_directory(
+    'dataset/validation',
+    target_size=(224, 224),
+    batch_size=32,
+    class_mode='categorical'
+)
+
+test_generator = datagen.flow_from_directory(
+    'dataset/test',
+    target_size=(224, 224),
+    batch_size=32,
+    class_mode='categorical'
+)
+
+# Model Architecture
+input_tensor = Input(shape=(224, 224, 3))
+base_model = InceptionV3(include_top=False, weights='imagenet', input_tensor=input_tensor)
+
+# Freeze the base model layers
+base_model.trainable = False
+
+# Add custom layers
+x = base_model.output
+x = Flatten()(x)
+x = Reshape((8, -1))(x)
+x = LSTM(64, return_sequences=True)(x)
+x = Dense(128, activation='relu')(x)
+predictions = Dense(2, activation='softmax')(x)
+
+# Create the model
+model = Model(inputs=base_model.input, outputs=predictions)
+
+# Compile the model
+model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+
+# Train the model
+model.fit(
+    train_generator,
+    steps_per_epoch=train_generator.samples // train_generator.batch_size,
+    validation_data=validation_generator,
+    validation_steps=validation_generator.samples // validation_generator.batch_size,
+    epochs=20
+)
+
+# Evaluate the model
+test_loss, test_acc = model.evaluate(test_generator, steps=test_generator.samples // test_generator.batch_size)
+print(f'Test accuracy: {test_acc}')
+```
+------------------------------------- 0
+```python
+import tensorflow as tf
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Conv2D, SeparableConv2D, MaxPooling2D, Dropout, Flatten, Dense, BatchNormalization
+from tensorflow.keras.optimizers import Adam
+
+# Define paths to your dataset
+train_dir = 'path_to_train_directory'
+val_dir = 'path_to_validation_directory'
+test_dir = 'path_to_test_directory'
+
+# ImageDataGenerator for data augmentation and preprocessing
+train_datagen = ImageDataGenerator(
+    rescale=1./255,
+    rotation_range=20,
+    width_shift_range=0.2,
+    height_shift_range=0.2,
+    shear_range=0.2,
+    zoom_range=0.2,
+    horizontal_flip=True,
+    fill_mode='nearest'
+)
+
+val_datagen = ImageDataGenerator(rescale=1./255)
+test_datagen = ImageDataGenerator(rescale=1./255)
+
+# Load datasets
+train_generator = train_datagen.flow_from_directory(
+    train_dir,
+    target_size=(224, 224),
+    batch_size=32,
+    class_mode='binary'
+)
+
+val_generator = val_datagen.flow_from_directory(
+    val_dir,
+    target_size=(224, 224),
+    batch_size=32,
+    class_mode='binary'
+)
+
+test_generator = test_datagen.flow_from_directory(
+    test_dir,
+    target_size=(224, 224),
+    batch_size=32,
+    class_mode='binary'
+)
+
+# Build the model
+model = Sequential([
+    Conv2D(32, (3, 3), activation='relu', padding='same', input_shape=(224, 224, 3)),
+    BatchNormalization(),
+    SeparableConv2D(32, (3, 3), activation='relu', padding='same'),
+    MaxPooling2D((2, 2)),
+    Dropout(0.3),
+    
+    SeparableConv2D(64, (3, 3), activation='relu', padding='same'),
+    SeparableConv2D(64, (3, 3), activation='relu', padding='same'),
+    BatchNormalization(),
+    MaxPooling2D((2, 2)),
+    Dropout(0.4),
+    
+    Conv2D(128, (3, 3), activation='relu', padding='same'),
+    Conv2D(128, (3, 3), activation='relu', padding='same'),
+    BatchNormalization(),
+    MaxPooling2D((2, 2)),
+    Dropout(0.5),
+    
+    Flatten(),
+    Dense(128, activation='relu'),
+    Dropout(0.3),
+    Dense(1, activation='sigmoid')  # Binary classification
+])
+
+# Compile the model
+model.compile(
+    optimizer=Adam(learning_rate=0.001),
+    loss='binary_crossentropy',
+    metrics=['accuracy']
+)
+
+# Train the model
+history = model.fit(
+    train_generator,
+    steps_per_epoch=train_generator.samples // train_generator.batch_size,
+    validation_data=val_generator,
+    validation_steps=val_generator.samples // val_generator.batch_size,
+    epochs=20
+)
+
+# Evaluate the model on the test set
+test_loss, test_accuracy = model.evaluate(test_generator, steps=test_generator.samples // test_generator.batch_size)
+print(f'Test Accuracy: {test_accuracy}')
+```
+------------------------------------- 1
+```python
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout, BatchNormalization
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras.optimizers import Adam
+
+# Dataset attributes
+num_classes = 4
+input_shape = (224, 224, 3)
+batch_size = 32
+epochs = 1000
+
+# Preprocessing and Data Augmentation
+train_datagen = ImageDataGenerator(
+    rescale=1./255,
+    rotation_range=20,
+    width_shift_range=0.2,
+    height_shift_range=0.2,
+    shear_range=0.2,
+    zoom_range=0.2,
+    horizontal_flip=True,
+    fill_mode='nearest'
+)
+
+test_datagen = ImageDataGenerator(rescale=1./255)
+
+# Assuming you have a directory structure for your dataset
+train_generator = train_datagen.flow_from_directory(
+    'path_to_train_data',
+    target_size=(224, 224),
+    batch_size=batch_size,
+    class_mode='categorical'
+)
+
+validation_generator = test_datagen.flow_from_directory(
+    'path_to_validation_data',
+    target_size=(224, 224),
+    batch_size=batch_size,
+    class_mode='categorical'
+)
+
+# Model Architecture
+model = Sequential([
+    Conv2D(64, (3, 3), activation='relu', input_shape=input_shape),
+    BatchNormalization(),
+    MaxPooling2D(pool_size=(2, 2)),
+    Dropout(0.25),
+    Flatten(),
+    Dense(128, activation='relu'),
+    Dropout(0.5),
+    Dense(num_classes, activation='softmax')
+])
+
+# Compile the model
+model.compile(optimizer=Adam(learning_rate=0.001),
+              loss='categorical_crossentropy',
+              metrics=['accuracy'])
+
+# Train the model
+model.fit(
+    train_generator,
+    steps_per_epoch=train_generator.samples // batch_size,
+    validation_data=validation_generator,
+    validation_steps=validation_generator.samples // batch_size,
+    epochs=epochs
+)
+
+# Save the model
+model.save('retinal_disease_classifier.h5')
+```
+------------------------------------- 2
+```python
+import tensorflow as tf
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout, BatchNormalization
+from tensorflow.keras.optimizers import Adam
+from sklearn.model_selection import train_test_split
+import numpy as np
+import os
+from PIL import Image
+
+# Constants
+IMG_SIZE = (224, 224)
+BATCH_SIZE = 32
+EPOCHS = 1000
+NUM_CLASSES = 4
+
+# Load and preprocess data
+def load_data(data_dir):
+    images = []
+    labels = []
+    class_names = ['Healthy', 'Bunchy top', 'Fusarium wilt', 'Moko']
+    
+    for label_idx, class_name in enumerate(class_names):
+        class_dir = os.path.join(data_dir, class_name)
+        for img_name in os.listdir(class_dir):
+            img_path = os.path.join(class_dir, img_name)
+            img = Image.open(img_path).resize(IMG_SIZE)
+            img_array = np.array(img) / 255.0
+            images.append(img_array)
+            labels.append(label_idx)
+    
+    images = np.array(images)
+    labels = np.array(labels)
+    return images, labels
+
+data_dir = 'path_to_your_dataset'
+images, labels = load_data(data_dir)
+
+# Shuffle and split data
+X_train, X_temp, y_train, y_temp = train_test_split(images, labels, test_size=0.3, random_state=42)
+X_val, X_test, y_val, y_test = train_test_split(X_temp, y_temp, test_size=0.5, random_state=42)
+
+# Data augmentation
+datagen = ImageDataGenerator(
+    rotation_range=20,
+    width_shift_range=0.2,
+    height_shift_range=0.2,
+    zoom_range=0.2,
+    horizontal_flip=True,
+    fill_mode='nearest'
+)
+datagen.fit(X_train)
+
+# Model architecture
+model = Sequential([
+    Conv2D(32, (3, 3), activation='relu', input_shape=(224, 224, 3)),
+    BatchNormalization(),
+    MaxPooling2D((2, 2)),
+    
+    Conv2D(64, (3, 3), activation='relu'),
+    BatchNormalization(),
+    MaxPooling2D((2, 2)),
+    
+    Conv2D(128, (3, 3), activation='relu'),
+    BatchNormalization(),
+    MaxPooling2D((2, 2)),
+    
+    Flatten(),
+    Dense(512, activation='relu'),
+    Dropout(0.5),
+    Dense(NUM_CLASSES, activation='softmax')
+])
+
+# Compile model
+model.compile(optimizer=Adam(), loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+
+# Train model
+history = model.fit(
+    datagen.flow(X_train, y_train, batch_size=BATCH_SIZE),
+    epochs=EPOCHS,
+    validation_data=(X_val, y_val),
+    steps_per_epoch=len(X_train) // BATCH_SIZE
+)
+
+# Evaluate model
+test_loss, test_acc = model.evaluate(X_test, y_test)
+print(f'Test accuracy: {test_acc}')
+```
+------------------------------------- 3
+```python
+import tensorflow as tf
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, GlobalAveragePooling2D, Dense, Dropout
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.callbacks import EarlyStopping
+
+# Data directories
+train_dir = 'path/to/train_directory'
+val_dir = 'path/to/validation_directory'
+test_dir = 'path/to/test_directory'
+
+# Image data generator for data augmentation and preprocessing
+train_datagen = ImageDataGenerator(
+    rescale=1./255,
+    rotation_range=20,
+    width_shift_range=0.2,
+    height_shift_range=0.2,
+    horizontal_flip=True,
+    fill_mode='nearest'
+)
+
+val_datagen = ImageDataGenerator(rescale=1./255)
+
+# Load and preprocess data
+train_generator = train_datagen.flow_from_directory(
+    train_dir,
+    target_size=(224, 224),
+    batch_size=32,
+    class_mode='categorical'
+)
+
+val_generator = val_datagen.flow_from_directory(
+    val_dir,
+    target_size=(224, 224),
+    batch_size=32,
+    class_mode='categorical'
+)
+
+# Model architecture
+model = Sequential([
+    Conv2D(32, kernel_size=(3, 3), padding='same', activation='relu', input_shape=(224, 224, 3)),
+    MaxPooling2D(pool_size=(2, 2)),
+    Conv2D(64, kernel_size=(3, 3), padding='same', activation='relu'),
+    MaxPooling2D(pool_size=(2, 2)),
+    Conv2D(128, kernel_size=(3, 3), padding='same', activation='relu'),
+    MaxPooling2D(pool_size=(2, 2)),
+    GlobalAveragePooling2D(),
+    Dense(256, activation='relu'),
+    Dropout(0.3),
+    Dense(train_generator.num_classes, activation='softmax')
+])
+
+# Compile the model
+model.compile(
+    optimizer=Adam(learning_rate=0.0001),
+    loss='categorical_crossentropy',
+    metrics=['accuracy']
+)
+
+# Early stopping to prevent overfitting
+early_stopping = EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=True)
+
+# Train the model
+history = model.fit(
+    train_generator,
+    steps_per_epoch=train_generator.samples // train_generator.batch_size,
+    validation_data=val_generator,
+    validation_steps=val_generator.samples // val_generator.batch_size,
+    epochs=30,
+    callbacks=[early_stopping]
+)
+
+# Evaluate the model on the test set
+test_datagen = ImageDataGenerator(rescale=1./255)
+
+test_generator = test_datagen.flow_from_directory(
+    test_dir,
+    target_size=(224, 224),
+    batch_size=32,
+    class_mode='categorical',
+    shuffle=False
+)
+
+test_loss, test_accuracy = model.evaluate(test_generator, steps=test_generator.samples // test_generator.batch_size)
+print(f'Test Accuracy: {test_accuracy:.4f}')
+```
+------------------------------------- 4
+```python
+import tensorflow as tf
+from tensorflow.keras.layers import Input, Conv2D, BatchNormalization, Activation, Add, UpSampling2D
+from tensorflow.keras.models import Model
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+import numpy as np
+
+# Hyperparameters
+LEARNING_RATE = 0.0002
+BATCH_SIZE = 2
+EPOCHS = 50
+
+# Preprocessing function
+def preprocess_image(image, target_size):
+    image = tf.image.resize(image, target_size)
+    image = (image - 127.5) / 127.5  # Normalize to [-1, 1]
+    return image
+
+# Data Generator
+def data_generator(low_res_path, high_res_path, batch_size):
+    datagen = ImageDataGenerator(
+        preprocessing_function=lambda x: preprocess_image(x, (32, 32)),
+        horizontal_flip=True
+    )
+    low_res_gen = datagen.flow_from_directory(
+        low_res_path,
+        target_size=(32, 32),
+        batch_size=batch_size,
+        class_mode=None,
+        shuffle=True
+    )
+    high_res_gen = datagen.flow_from_directory(
+        high_res_path,
+        target_size=(128, 128),
+        batch_size=batch_size,
+        class_mode=None,
+        shuffle=True
+    )
+    while True:
+        low_res_batch = next(low_res_gen)
+        high_res_batch = next(high_res_gen)
+        yield low_res_batch, high_res_batch
+
+# Generator Model
+def build_generator():
+    input_layer = Input(shape=(None, None, 3))
+    x = Conv2D(64, 9, padding='same')(input_layer)
+    x = Activation('relu')(x)
+    x = Conv2D(64, 3, padding='same')(x)
+    x = BatchNormalization()(x)
+    x = Add()([input_layer, x])
+    x = UpSampling2D(size=2)(x)
+    x = Conv2D(256, 3, padding='same')(x)
+    x = Activation('relu')(x)
+    output_layer = Conv2D(3, 9, activation='tanh', padding='same')(x)
+    return Model(input_layer, output_layer)
+
+# Discriminator Model
+def build_discriminator():
+    input_layer = Input(shape=(None, None, 3))
+    x = Conv2D(64, 3, strides=2, padding='same')(input_layer)
+    x = LeakyReLU(alpha=0.2)(x)
+    x = Conv2D(128, 3, strides=2, padding='same')(x)
+    x = BatchNormalization()(x)
+    x = LeakyReLU(alpha=0.2)(x)
+    x = Conv2D(256, 3, strides=2, padding='same')(x)
+    x = BatchNormalization()(x)
+    x = LeakyReLU(alpha=0.2)(x)
+    x = Conv2D(512, 3, strides=2, padding='same')(x)
+    x = BatchNormalization()(x)
+    x = LeakyReLU(alpha=0.2)(x)
+    output_layer = Conv2D(1, 3, activation='sigmoid', padding='same')(x)
+    return Model(input_layer, output_layer)
+
+# SRGAN Model
+def build_srgan(generator, discriminator):
+    discriminator.trainable = False
+    input_layer = Input(shape=(None, None, 3))
+    gen_output = generator(input_layer)
+    dis_output = discriminator(gen_output)
+    return Model(input_layer, [gen_output, dis_output])
+
+# Compile Models
+generator = build_generator()
+discriminator = build_discriminator()
+srgan = build_srgan(generator, discriminator)
+
+discriminator.compile(optimizer=Adam(LEARNING_RATE), loss='binary_crossentropy', metrics=['accuracy'])
+srgan.compile(optimizer=Adam(LEARNING_RATE), loss=['mean_squared_error', 'binary_crossentropy'], loss_weights=[1e-3, 1])
+
+# Training
+train_generator = data_generator('path_to_low_res_images', 'path_to_high_res_images', BATCH_SIZE)
+
+for epoch in range(EPOCHS):
+    low_res_batch, high_res_batch = next(train_generator)
+    
+    # Generate fake high-res images
+    fake_high_res = generator.predict(low_res_batch)
+    
+    # Train discriminator
+    real_labels = np.ones((BATCH_SIZE, 1, 1, 1))
+    fake_labels = np.zeros((BATCH_SIZE, 1, 1, 1))
+    
+    d_loss_real = discriminator.train_on_batch(high_res_batch, real_labels)
+    d_loss_fake = discriminator.train_on_batch(fake_high_res, fake_labels)
+    d_loss = 0.5 * np.add(d_loss_real, d_loss_fake)
+    
+    # Train generator
+    g_loss = srgan.train_on_batch(low_res_batch, [high_res_batch, real_labels])
+    
+    print(f"Epoch {epoch+1}/{EPOCHS} - D loss: {d_loss[0]} - D acc: {d_loss[1]} - G loss: {g_loss[0]}")
+
+# Save models
+generator.save('generator.h5')
+discriminator.save('discriminator.h5')
+```
+------------------------------------- 5
+```python
+import tensorflow as tf
+from tensorflow.keras.layers import Input, Conv2D, MaxPooling2D, Dropout, Conv2DTranspose, concatenate
+from tensorflow.keras.models import Model
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from skimage.metrics import peak_signal_noise_ratio, structural_similarity
+import numpy as np
+import os
+from scipy.ndimage import gaussian_filter
+from pywt import dwt2, idwt2
+
+# Define the U-Net model
+def build_unet(input_shape):
+    inputs = Input(input_shape)
+    
+    # Encoder
+    conv1 = Conv2D(16, (2, 2), activation='relu', padding='same')(inputs)
+    conv1 = Conv2D(16, (2, 2), activation='relu', padding='same')(conv1)
+    pool1 = MaxPooling2D((2, 2))(conv1)
+    drop1 = Dropout(0.5)(pool1)
+    
+    conv2 = Conv2D(32, (2, 2), activation='relu', padding='same')(drop1)
+    conv2 = Conv2D(32, (2, 2), activation='relu', padding='same')(conv2)
+    pool2 = MaxPooling2D((2, 2))(conv2)
+    drop2 = Dropout(0.5)(pool2)
+    
+    conv3 = Conv2D(64, (2, 2), activation='relu', padding='same')(drop2)
+    conv3 = Conv2D(64, (2, 2), activation='relu', padding='same')(conv3)
+    
+    # Decoder
+    up4 = Conv2DTranspose(64, (2, 2), strides=(2, 2), padding='same')(conv3)
+    merge4 = concatenate([up4, conv2])
+    drop4 = Dropout(0.5)(merge4)
+    conv4 = Conv2D(32, (2, 2), activation='relu', padding='same')(drop4)
+    conv4 = Conv2D(32, (2, 2), activation='relu', padding='same')(conv4)
+    
+    up5 = Conv2DTranspose(32, (2, 2), strides=(2, 2), padding='same')(conv4)
+    merge5 = concatenate([up5, conv1])
+    drop5 = Dropout(0.5)(merge5)
+    conv5 = Conv2D(16, (2, 2), activation='relu', padding='same')(drop5)
+    conv5 = Conv2D(16, (2, 2), activation='relu', padding='same')(conv5)
+    
+    outputs = Conv2D(3, (1, 1), padding='same', activation='sigmoid')(conv5)
+    
+    model = Model(inputs=[inputs], outputs=[outputs])
+    return model
+
+# Preprocessing functions
+def preprocess_image(image):
+    image = image / 255.0  # Normalize to 0-1
+    return image
+
+def apply_gaussian_wavelet(image):
+    # Apply Gaussian smoothing
+    smoothed = gaussian_filter(image, sigma=1)
+    # Apply wavelet transformation
+    coeffs = dwt2(smoothed, 'haar')
+    LL, (LH, HL, HH) = coeffs
+    # Reconstruct the image
+    denoised = idwt2((LL, (LH, HL, HH)), 'haar')
+    return denoised
+
+# Data generator
+def data_generator(image_dir, batch_size):
+    datagen = ImageDataGenerator(rescale=1./255)
+    generator = datagen.flow_from_directory(
+        image_dir,
+        target_size=(512, 512),
+        batch_size=batch_size,
+        class_mode=None,
+        shuffle=True
+    )
+    while True:
+        batch_x = next(generator)
+        batch_y = np.array([apply_gaussian_wavelet(img) for img in batch_x])
+        yield batch_x, batch_y
+
+# Training the model
+input_shape = (512, 512, 3)
+model = build_unet(input_shape)
+model.compile(optimizer=Adam(learning_rate=0.001), loss='mse', metrics=['accuracy'])
+
+batch_size = 16
+epochs = 20
+image_dir = 'path_to_your_image_directory'
+
+train_generator = data_generator(image_dir, batch_size)
+model.fit(train_generator, steps_per_epoch=len(os.listdir(image_dir)) // batch_size, epochs=epochs)
+
+# Evaluation
+def evaluate_model(model, test_images):
+    denoised_images = model.predict(test_images)
+    psnr_values = [peak_signal_noise_ratio(test_images[i], denoised_images[i]) for i in range(len(test_images))]
+    ssim_values = [structural_similarity(test_images[i], denoised_images[i], multichannel=True) for i in range(len(test_images))]
+    return np.mean(psnr_values), np.mean(ssim_values)
+
+# Load test images and evaluate
+test_images = np.array([preprocess_image(img) for img in test_images])
+psnr, ssim = evaluate_model(model, test_images)
+print(f'Average PSNR: {psnr}, Average SSIM: {ssim}')
+```
+------------------------------------- 6
+```python
+import tensorflow as tf
+from tensorflow.keras.layers import Conv2D, Conv2DTranspose
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+import numpy as np
+import os
+
+# Define paths to your dataset
+train_hazy_dir = 'path/to/train/hazy/images'
+train_clear_dir = 'path/to/train/clear/images'
+val_hazy_dir = 'path/to/val/hazy/images'
+val_clear_dir = 'path/to/val/clear/images'
+
+# ImageDataGenerator for data augmentation and normalization
+datagen = ImageDataGenerator(rescale=1./255)
+
+# Load and preprocess training data
+train_generator = datagen.flow_from_directory(
+    directory=os.path.dirname(train_hazy_dir),
+    target_size=(384, 384),
+    batch_size=16,
+    class_mode=None,
+    classes=['hazy', 'clear'],
+    shuffle=True
+)
+
+# Load and preprocess validation data
+val_generator = datagen.flow_from_directory(
+    directory=os.path.dirname(val_hazy_dir),
+    target_size=(384, 384),
+    batch_size=16,
+    class_mode=None,
+    classes=['hazy', 'clear'],
+    shuffle=False
+)
+
+# Define the model architecture
+model = Sequential([
+    Conv2D(64, kernel_size=3, padding='same', activation='relu', input_shape=(384, 384, 3)),
+    Conv2D(64, kernel_size=3, padding='same', activation='relu'),
+    Conv2D(128, kernel_size=3, strides=2, padding='same', activation='relu'),
+    Conv2D(64, kernel_size=3, padding='same', activation='relu'),
+    Conv2DTranspose(64, kernel_size=3, strides=2, padding='same'),
+    Conv2D(3, kernel_size=3, padding='same')
+])
+
+# Compile the model
+model.compile(optimizer=Adam(learning_rate=0.0001), loss='mean_squared_error', metrics=['mse'])
+
+# Train the model
+model.fit(
+    train_generator,
+    steps_per_epoch=len(train_generator),
+    validation_data=val_generator,
+    validation_steps=len(val_generator),
+    epochs=8
+)
+
+# Save the model
+model.save('dehazing_model.h5')
+```
+------------------------------------- 7
+```python
+import tensorflow as tf
+from tensorflow.keras.layers import Conv2D, Conv2DTranspose, LeakyReLU, ReLU, Concatenate, Input
+from tensorflow.keras.models import Model
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.losses import BinaryCrossentropy
+from tensorflow_addons.layers import GroupNormalization
+
+# Hyperparameters
+LEARNING_RATE = 0.0002
+BATCH_SIZE = 1
+EPOCHS = 50
+
+# Input shape
+IMG_SHAPE = (256, 256, 3)
+
+# Generator and Discriminator architectures
+def build_generator(input_shape):
+    inputs = Input(shape=input_shape)
+    x = Conv2D(64, 4, strides=2, padding='same')(inputs)
+    x = GroupNormalization(groups=-1)(x)
+    x = LeakyReLU()(x)
+    
+    for filters in [128, 256, 512, 512, 512, 512, 512]:
+        x = Conv2D(filters, 4, strides=2, padding='same')(x)
+        x = GroupNormalization(groups=-1)(x)
+        x = LeakyReLU()(x)
+    
+    for filters in [512, 512, 512, 256, 128, 64]:
+        x = Conv2DTranspose(filters, 4, strides=2, padding='same')(x)
+        x = GroupNormalization(groups=-1)(x)
+        x = ReLU()(x)
+    
+    outputs = Conv2DTranspose(3, 4, strides=2, padding='same', activation='tanh')(x)
+    return Model(inputs, outputs)
+
+def build_discriminator(input_shape):
+    inputs = Input(shape=input_shape)
+    x = Conv2D(64, 4, strides=2, padding='same')(inputs)
+    x = LeakyReLU()(x)
+    
+    for filters in [128, 256, 512]:
+        x = Conv2D(filters, 4, strides=2, padding='same')(x)
+        x = GroupNormalization(groups=-1)(x)
+        x = LeakyReLU()(x)
+    
+    outputs = Conv2D(1, 4, strides=1, padding='same', activation='sigmoid')(x)
+    return Model(inputs, outputs)
+
+# CycleGAN model
+def build_cyclegan(generator_G, generator_F, discriminator_X, discriminator_Y):
+    # Inputs
+    real_X = Input(shape=IMG_SHAPE)
+    real_Y = Input(shape=IMG_SHAPE)
+    
+    # Generate images
+    fake_Y = generator_G(real_X)
+    fake_X = generator_F(real_Y)
+    
+    # Reconstruct images
+    reconstructed_X = generator_F(fake_Y)
+    reconstructed_Y = generator_G(fake_X)
+    
+    # Discriminate real and fake images
+    valid_X = discriminator_X(fake_X)
+    valid_Y = discriminator_Y(fake_Y)
+    
+    # Combined model
+    combined = Model(inputs=[real_X, real_Y],
+                     outputs=[valid_X, valid_Y, reconstructed_X, reconstructed_Y, fake_X, fake_Y])
+    
+    return combined
+
+# Loss functions
+def cycle_loss(real, reconstructed):
+    return tf.reduce_mean(tf.abs(real - reconstructed))
+
+def identity_loss(real, same):
+    return tf.reduce_mean(tf.abs(real - same))
+
+# Training step
+@tf.function
+def train_step(real_X, real_Y, generator_G, generator_F, discriminator_X, discriminator_Y, combined):
+    with tf.GradientTape(persistent=True) as tape:
+        # Generate images
+        fake_Y = generator_G(real_X, training=True)
+        fake_X = generator_F(real_Y, training=True)
+        
+        # Reconstruct images
+        reconstructed_X = generator_F(fake_Y, training=True)
+        reconstructed_Y = generator_G(fake_X, training=True)
+        
+        # Discriminate real and fake images
+        valid_X = discriminator_X(fake_X, training=True)
+        valid_Y = discriminator_Y(fake_Y, training=True)
+        
+        # Losses
+        gen_G_loss = BinaryCrossentropy()(tf.ones_like(valid_Y), valid_Y)
+        gen_F_loss = BinaryCrossentropy()(tf.ones_like(valid_X), valid_X)
+        
+        total_cycle_loss = cycle_loss(real_X, reconstructed_X) + cycle_loss(real_Y, reconstructed_Y)
+        
+        total_gen_G_loss = gen_G_loss + total_cycle_loss
+        total_gen_F_loss = gen_F_loss + total_cycle_loss
+        
+        disc_X_loss = BinaryCrossentropy()(tf.ones_like(valid_X), valid_X)
+        disc_Y_loss = BinaryCrossentropy()(tf.ones_like(valid_Y), valid_Y)
+    
+    # Compute gradients
+    grad_gen_G = tape.gradient(total_gen_G_loss, generator_G.trainable_variables)
+    grad_gen_F = tape.gradient(total_gen_F_loss, generator_F.trainable_variables)
+    grad_disc_X = tape.gradient(disc_X_loss, discriminator_X.trainable_variables)
+    grad_disc_Y = tape.gradient(disc_Y_loss, discriminator_Y.trainable_variables)
+    
+    # Apply gradients
+    combined.optimizer.apply_gradients(zip(grad_gen_G, generator_G.trainable_variables))
+    combined.optimizer.apply_gradients(zip(grad_gen_F, generator_F.trainable_variables))
+    combined.optimizer.apply_gradients(zip(grad_disc_X, discriminator_X.trainable_variables))
+    combined.optimizer.apply_gradients(zip(grad_disc_Y, discriminator_Y.trainable_variables))
+
+# Load dataset
+def load_dataset(tfrecord_path):
+    raw_dataset = tf.data.TFRecordDataset(tfrecord_path)
+    def _parse_image_function(example_proto):
+        image_feature_description = {
+            'image_raw': tf.io.FixedLenFeature([], tf.string),
+        }
+        parsed_features = tf.io.parse_single_example(example_proto, image_feature_description)
+        image = tf.image.decode_jpeg(parsed_features['image_raw'], channels=3)
+        image = tf.image.resize(image, [256, 256])
+        image = (tf.cast(image, tf.float32) - 127.5) / 127.5
+        return image
+    parsed_image_dataset = raw_dataset.map(_parse_image_function)
+    return parsed_image_dataset
+
+# Main training loop
+def train(monet_tfrecord_path, photo_tfrecord_path, epochs):
+    monet_dataset = load_dataset(monet_tfrecord_path)
+    photo_dataset = load_dataset(photo_tfrecord_path)
+    
+    monet_dataset = monet_dataset.batch(BATCH_SIZE)
+    photo_dataset = photo_dataset.batch(BATCH_SIZE)
+    
+    generator_G = build_generator(IMG_SHAPE)
+    generator_F = build_generator(IMG_SHAPE)
+    discriminator_X = build_discriminator(IMG_SHAPE)
+    discriminator_Y = build_discriminator(IMG_SHAPE)
+    
+    combined = build_cyclegan(generator_G, generator_F, discriminator_X, discriminator_Y)
+    combined.compile(optimizer=Adam(LEARNING_RATE, beta_1=0.5))
+    
+    for epoch in range(epochs):
+        for real_X, real_Y in zip(photo_dataset, monet_dataset):
+            train_step(real_X, real_Y, generator_G, generator_F, discriminator_X, discriminator_Y, combined)
+        
+        print(f"Epoch {epoch+1}/{epochs} completed")
+
+# Example usage
+train('monet_tfrecords.tfrecord', 'photo_tfrecords.tfrecord', EPOCHS)
+```
+------------------------------------- 8
+```python
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras.models import Model
+from tensorflow.keras.layers import Input, Conv2D, BatchNormalization, MaxPooling2D, Conv2DTranspose, Concatenate, GlobalAveragePooling2D, Dense, Reshape
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.callbacks import EarlyStopping
+
+# Load and preprocess the dataset
+def load_dataset(input_path, output_path):
+    X = np.load(input_path)  # Shape: (25000, 20, 8, 1)
+    y = np.load(output_path)  # Shape: (25000, 64, 64, 2)
+    return X, y
+
+input_path = 'path_to_input_data.npy'
+output_path = 'path_to_output_data.npy'
+X, y = load_dataset(input_path, output_path)
+
+# Split the dataset into training and validation sets
+from sklearn.model_selection import train_test_split
+X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Define the U-Net model
+def build_unet(input_shape):
+    inputs = Input(shape=input_shape)
+    
+    # Encoder
+    conv1 = Conv2D(64, (3, 3), activation='relu', padding='same')(inputs)
+    conv1 = BatchNormalization()(conv1)
+    conv1 = Conv2D(64, (3, 3), activation='relu', padding='same')(conv1)
+    conv1 = BatchNormalization()(conv1)
+    pool1 = MaxPooling2D((2, 2))(conv1)
+    
+    conv2 = Conv2D(128, (3, 3), activation='relu', padding='same')(pool1)
+    conv2 = BatchNormalization()(conv2)
+    
+    # Decoder
+    up1 = Conv2DTranspose(256, (3, 3), activation='relu', padding='same', strides=(2, 2))(conv2)
+    merge1 = Concatenate()([up1, conv1])
+    conv3 = Conv2D(128, (3, 3), activation='relu', padding='same')(merge1)
+    conv3 = BatchNormalization()(conv3)
+    
+    up2 = Conv2DTranspose(128, (3, 3), activation='relu', padding='same', strides=(2, 2))(conv3)
+    merge2 = Concatenate()([up2, inputs])
+    conv4 = Conv2D(64, (3, 3), activation='relu', padding='same')(merge2)
+    conv4 = BatchNormalization()(conv4)
+    
+    gap = GlobalAveragePooling2D()(conv4)
+    dense = Dense(64*64*2, activation='relu')(gap)
+    outputs = Reshape((64, 64, 2))(dense)
+    
+    model = Model(inputs, outputs)
+    return model
+
+input_shape = (20, 8, 1)
+model = build_unet(input_shape)
+
+# Compile the model
+model.compile(optimizer=Adam(learning_rate=0.001), loss='mse', metrics=['accuracy'])
+
+# Define callbacks
+early_stopping = EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
+
+# Train the model
+history = model.fit(
+    X_train, y_train,
+    batch_size=16,
+    epochs=50,
+    validation_data=(X_val, y_val),
+    callbacks=[early_stopping]
+)
+
+# Save the model
+model.save('unet_model.h5')
+```
+------------------------------------- 9
+```python
+import tensorflow as tf
+from tensorflow.keras.applications.vgg16 import VGG16, preprocess_input
+from tensorflow.keras.preprocessing.image import load_img, img_to_array
+from tensorflow.keras.preprocessing.text import Tokenizer
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+from tensorflow.keras.models import Model
+from tensorflow.keras.layers import Input, Dense, Dropout, Embedding, LSTM, add
+from tensorflow.keras.utils import to_categorical
+import numpy as np
+import os
+
+# Load and preprocess the dataset
+def load_dataset(image_dir, captions_file):
+    images = []
+    captions = []
+    with open(captions_file, 'r') as f:
+        for line in f:
+            parts = line.strip().split('\t')
+            if len(parts) == 2:
+                image_id = parts[0].split('.')[0]
+                caption = parts[1]
+                images.append(image_id)
+                captions.append(caption)
+    return images, captions
+
+# Preprocess images using VGG16
+def preprocess_image(image_path):
+    img = load_img(image_path, target_size=(224, 224))
+    img = img_to_array(img)
+    img = np.expand_dims(img, axis=0)
+    img = preprocess_input(img)
+    return img
+
+# Extract features using VGG16
+def extract_features(image_dir, image_ids):
+    model = VGG16(weights='imagenet', include_top=False, pooling='avg')
+    features = {}
+    for image_id in image_ids:
+        image_path = os.path.join(image_dir, f"{image_id}.jpg")
+        img = preprocess_image(image_path)
+        feature = model.predict(img)
+        features[image_id] = feature.flatten()
+    return features
+
+# Preprocess captions
+def preprocess_captions(captions):
+    cleaned_captions = []
+    for caption in captions:
+        caption = caption.lower()
+        caption = caption.replace('[^a-z]', ' ')
+        caption = caption.replace(' +', ' ')
+        caption = 'startseq ' + caption + ' endseq'
+        cleaned_captions.append(caption)
+    return cleaned_captions
+
+# Tokenize captions
+def tokenize_captions(captions):
+    tokenizer = Tokenizer()
+    tokenizer.fit_on_texts(captions)
+    sequences = tokenizer.texts_to_sequences(captions)
+    max_length = max(len(seq) for seq in sequences)
+    vocab_size = len(tokenizer.word_index) + 1
+    return tokenizer, sequences, max_length, vocab_size
+
+# Prepare data for training
+def prepare_data(features, sequences, max_length, vocab_size):
+    X1, X2, y = [], [], []
+    for img_id, seq in zip(features.keys(), sequences):
+        for i in range(1, len(seq)):
+            in_seq, out_seq = seq[:i], seq[i]
+            in_seq = pad_sequences([in_seq], maxlen=max_length)[0]
+            out_seq = to_categorical([out_seq], num_classes=vocab_size)[0]
+            X1.append(features[img_id])
+            X2.append(in_seq)
+            y.append(out_seq)
+    return np.array(X1), np.array(X2), np.array(y)
+
+# Define the model
+def define_model(vocab_size, max_length):
+    # Image feature extraction model
+    inputs1 = Input(shape=(4096,))
+    fe1 = Dropout(0.4)(inputs1)
+    fe2 = Dense(256, activation='relu')(fe1)
+    
+    # Sequence model
+    inputs2 = Input(shape=(max_length,))
+    se1 = Embedding(vocab_size, 256, mask_zero=True)(inputs2)
+    se2 = Dropout(0.4)(se1)
+    se3 = LSTM(256)(se2)
+    
+    # Merging both models
+    decoder1 = add([fe2, se3])
+    decoder2 = Dense(256, activation='relu')(decoder1)
+    outputs = Dense(vocab_size, activation='softmax')(decoder2)
+    
+    # Tie it together [image, seq] [word]
+    model = Model(inputs=[inputs1, inputs2], outputs=outputs)
+    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+    return model
+
+# Load dataset
+image_dir = 'path_to_flickr8k_images'
+captions_file = 'path_to_flickr8k_captions.txt'
+image_ids, captions = load_dataset(image_dir, captions_file)
+
+# Extract features
+features = extract_features(image_dir, image_ids)
+
+# Preprocess captions
+cleaned_captions = preprocess_captions(captions)
+
+# Tokenize captions
+tokenizer, sequences, max_length, vocab_size = tokenize_captions(cleaned_captions)
+
+# Prepare data for training
+X1, X2, y = prepare_data(features, sequences, max_length, vocab_size)
+
+# Define the model
+model = define_model(vocab_size, max_length)
+
+# Train the model
+model.fit([X1, X2], y, epochs=30, batch_size=64, verbose=1)
+```
+------------------------------------- 10
+```python
+import tensorflow as tf
+from tensorflow.keras.models import Model
+from tensorflow.keras.layers import Input, Conv1D, MaxPooling1D, Bidirectional, LSTM, Dropout, Dense, Embedding
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.losses import SparseCategoricalCrossentropy
+from tensorflow.keras.metrics import SparseCategoricalAccuracy
+
+# Hyperparameters
+max_frame = 300
+number_of_hand_landmarks = 21
+max_char = 100  # Assuming a maximum of 100 characters per phrase
+max_characters = 26  # Assuming 26 characters (A-Z)
+
+# Character mapping
+charmap = {chr(i + 65): i for i in range(26)}  # A-Z
+
+# Input and Output shapes
+input_shape = (max_frame, number_of_hand_landmarks)
+output_shape = (max_char, 1)
+
+# Model Architecture
+input_layer = Input(shape=input_shape)
+x = Conv1D(512, 8, padding='same')(input_layer)
+x = MaxPooling1D()(x)
+x = Conv1D(512, 5, padding='same')(x)
+x = MaxPooling1D()(x)
+x = Bidirectional(LSTM(512, return_sequences=True))(x)
+x = Dropout(0.3)(x)
+x = Bidirectional(LSTM(512, return_sequences=True))(x)
+x = Bidirectional(LSTM(512, return_state=True))(x)
+x = Dense(512, activation='linear')(x)
+x = Embedding(max_characters, 512)(x)
+x = LSTM(512, return_sequences=True, return_state=True)(x)
+x = LSTM(512, return_sequences=True, return_state=True)(x)
+x = Dropout(0.3)(x)
+x = Dense(512, activation='relu')(x)
+output_layer = Dense(len(charmap), activation='linear')(x)
+
+model = Model(inputs=input_layer, outputs=output_layer)
+
+# Compile the model
+optimizer = Adam(learning_rate=1)
+loss_function = SparseCategoricalCrossentropy(from_logits=True)
+model.compile(optimizer=optimizer, loss=loss_function, metrics=[SparseCategoricalAccuracy(name='masked_accuracy')])
+
+# Summary of the model
+model.summary()
+
+# Assuming X_train, y_train, X_val, y_val are preprocessed and padded sequences
+# X_train: (num_samples, max_frame, number_of_hand_landmarks)
+# y_train: (num_samples, max_char, 1)
+
+# Training the model
+model.fit(X_train, y_train, batch_size=32, epochs=1000, validation_data=(X_val, y_val))
+```
+------------------------------------- 11
+```python
+import tensorflow as tf
+from tensorflow.keras.applications.vgg16 import VGG16, preprocess_input
+from tensorflow.keras.preprocessing.image import load_img, img_to_array
+from tensorflow.keras.preprocessing.text import Tokenizer
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+from tensorflow.keras.models import Model
+from tensorflow.keras.layers import Input, MaxPool2D, Flatten, Dense, Reshape, Embedding, LSTM, Bidirectional, Dropout
+from tensorflow.keras.optimizers import AdamW
+from tensorflow.keras.utils import to_categorical
+import numpy as np
+import os
+
+# Hyperparameters
+batch_size = 32
+epochs = 5
+learning_rate = 0.001
+vocab_size = 10000  # Example size, should be set based on actual vocab size
+max_caption_length = 123  # Example length, should be set based on actual max length
+
+# Load and preprocess images
+def load_and_preprocess_image(img_path):
+    img = load_img(img_path, target_size=(224, 224))
+    img = img_to_array(img)
+    img = preprocess_input(img)
+    return img
+
+# Extract features using VGG16
+vgg16 = VGG16(weights='imagenet', include_top=False, input_shape=(224, 224, 3))
+vgg16.trainable = False
+feature_extractor = Model(inputs=vgg16.input, outputs=vgg16.get_layer('block5_pool').output)
+
+# Tokenize captions
+def tokenize_captions(captions, vocab_size):
+    tokenizer = Tokenizer(num_words=vocab_size, oov_token="<OOV>")
+    tokenizer.fit_on_texts(captions)
+    sequences = tokenizer.texts_to_sequences(captions)
+    padded_sequences = pad_sequences(sequences, maxlen=max_caption_length, padding='post')
+    return padded_sequences, tokenizer
+
+# Load dataset
+def load_dataset(image_paths, captions):
+    images = np.array([load_and_preprocess_image(img_path) for img_path in image_paths])
+    features = feature_extractor.predict(images, verbose=1)
+    captions, tokenizer = tokenize_captions(captions, vocab_size)
+    return features, captions, tokenizer
+
+# Example dataset paths and captions
+image_paths = ['path_to_image1.jpg', 'path_to_image2.jpg', ...]  # Replace with actual paths
+captions = ['caption for image1', 'caption for image2', ...]  # Replace with actual captions
+
+# Load and preprocess dataset
+features, captions, tokenizer = load_dataset(image_paths, captions)
+
+# Model architecture
+image_input = Input(shape=(7, 7, 512))
+x = MaxPool2D()(image_input)
+x = Flatten()(x)
+x = Dense(512)(x)
+x = Reshape((1, 512))(x)
+
+caption_input = Input(shape=(max_caption_length,))
+y = Embedding(vocab_size, 512)(caption_input)
+y = Bidirectional(LSTM(256, dropout=0.1))(y)
+y = Dropout(0.5)(y)
+y = Dense(100, activation='relu')(y)
+y = Dropout(0.5)(y)
+output = Dense(vocab_size, activation='softmax')(y)
+
+model = Model(inputs=[image_input, caption_input], outputs=output)
+
+# Compile model
+optimizer = AdamW(learning_rate=learning_rate)
+model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
+
+# Prepare data for training
+captions_one_hot = to_categorical(captions, num_classes=vocab_size)
+
+# Train model
+model.fit([features, captions], captions_one_hot, batch_size=batch_size, epochs=epochs, validation_split=0.2)
+
+# Save model
+model.save('satellite_image_captioning_model.h5')
+```
+------------------------------------- 12
+```python
+import os
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from tensorflow.keras.preprocessing.image import load_img, img_to_array
+from tensorflow.keras.utils import to_categorical
+from tensorflow.keras.callbacks import EarlyStopping
+
+# Define paths and constants
+DATA_DIR = 'path_to_your_dataset_directory'
+IMG_HEIGHT, IMG_WIDTH = 32, 128
+NUM_CLASSES = 37  # Assuming 26 letters + 10 digits + 1 for blank
+
+# Function to preprocess images
+def preprocess_image(img_path):
+    img = load_img(img_path, color_mode='grayscale', target_size=(IMG_HEIGHT, IMG_WIDTH))
+    img = img_to_array(img)
+    img = img / 255.0  # Normalize
+    img = np.expand_dims(img, axis=-1)  # Add channel dimension
+    return img
+
+# Load dataset
+def load_dataset(data_dir):
+    images = []
+    labels = []
+    for img_name in os.listdir(data_dir):
+        img_path = os.path.join(data_dir, img_name)
+        img = preprocess_image(img_path)
+        label = img_name.split('_')[0]  # Assuming labels are in the filename
+        images.append(img)
+        labels.append(label)
+    return np.array(images), labels
+
+# Convert labels to sequences of integers
+def labels_to_sequences(labels):
+    char_to_int = {char: i for i, char in enumerate('abcdefghijklmnopqrstuvwxyz0123456789 ')}
+    sequences = [[char_to_int[char] for char in label] for label in labels]
+    return sequences
+
+# Build the model
+def build_model(input_shape, num_classes):
+    model = models.Sequential()
+    
+    # CNN layers for feature extraction
+    model.add(layers.Conv2D(32, (3, 3), activation='relu', input_shape=input_shape))
+    model.add(layers.MaxPooling2D((2, 2)))
+    model.add(layers.BatchNormalization())
+    
+    model.add(layers.Conv2D(64, (3, 3), activation='relu'))
+    model.add(layers.MaxPooling2D((2, 2)))
+    model.add(layers.BatchNormalization())
+    
+    model.add(layers.Conv2D(128, (3, 3), activation='relu'))
+    model.add(layers.MaxPooling2D((2, 2)))
+    model.add(layers.BatchNormalization())
+    
+    # Flatten the output for LSTM
+    model.add(layers.Reshape((-1, 128)))
+    
+    # Bidirectional LSTM layers for sequence modeling
+    model.add(layers.Bidirectional(layers.LSTM(128, return_sequences=True)))
+    model.add(layers.Bidirectional(layers.LSTM(128, return_sequences=True)))
+    
+    # Dense layer for output classification
+    model.add(layers.Dense(num_classes, activation='softmax'))
+    
+    return model
+
+# Load and preprocess the dataset
+images, labels = load_dataset(DATA_DIR)
+sequences = labels_to_sequences(labels)
+
+# Prepare data for training
+X_train = images
+y_train = to_categorical(sequences, num_classes=NUM_CLASSES)
+
+# Build the model
+model = build_model((IMG_HEIGHT, IMG_WIDTH, 1), NUM_CLASSES)
+
+# Compile the model
+model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+
+# Train the model
+early_stopping = EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
+model.fit(X_train, y_train, epochs=50, batch_size=32, validation_split=0.2, callbacks=[early_stopping])
+
+# Save the model
+model.save('license_plate_recognition_model.h5')
+```
+------------------------------------- 13
+```python
+import tensorflow as tf
+from tensorflow.keras.applications import VGG16
+from tensorflow.keras.models import Model
+from tensorflow.keras.layers import Input, Dense, Dropout, Embedding, LSTM, add
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+from tensorflow.keras.preprocessing.text import Tokenizer
+from tensorflow.keras.utils import to_categorical
+from tensorflow.keras.optimizers import Adam
+import numpy as np
+
+# Load and preprocess the dataset
+# Assuming images and captions are loaded into numpy arrays: images and captions
+# images: (num_samples, 224, 224, 3)
+# captions: list of lists, each sublist contains captions for an image
+
+# Extract image features using VGG16
+vgg_model = VGG16(weights='imagenet', include_top=False, pooling='avg')
+vgg_model = Model(inputs=vgg_model.input, outputs=vgg_model.layers[-1].output)
+image_features = vgg_model.predict(images)  # shape: (num_samples, 4096)
+
+# Tokenize captions
+tokenizer = Tokenizer()
+tokenizer.fit_on_texts(captions)
+vocab_size = len(tokenizer.word_index) + 1
+
+# Convert captions to sequences and pad them
+max_length = max(len(caption.split()) for sublist in captions for caption in sublist)
+caption_sequences = tokenizer.texts_to_sequences(captions)
+padded_captions = pad_sequences(caption_sequences, maxlen=max_length, padding='post')
+
+# Prepare training data
+X_img = image_features
+X_seq = padded_captions[:, :-1]  # Input sequences (excluding the last word)
+y = to_categorical(padded_captions[:, 1:], num_classes=vocab_size)  # Output sequences (excluding the first word)
+
+# Define the model
+input_img = Input(shape=(4096,))
+fe1 = Dropout(0.4)(input_img)
+fe2 = Dense(256, activation='relu')(fe1)
+
+input_seq = Input(shape=(max_length-1,))
+se1 = Embedding(vocab_size, 256, mask_zero=True)(input_seq)
+se2 = Dropout(0.4)(se1)
+se3 = LSTM(256)(se2)
+
+decoder1 = add([fe2, se3])
+decoder2 = Dense(256, activation='relu')(decoder1)
+outputs = Dense(vocab_size, activation='softmax')(decoder2)
+
+model = Model(inputs=[input_img, input_seq], outputs=outputs)
+
+# Compile the model
+model.compile(optimizer=Adam(), loss='categorical_crossentropy')
+
+# Train the model
+model.fit([X_img, X_seq], y, batch_size=32, epochs=50)
+
+# Evaluate the model using BLEU score (not implemented here)
+```
+------------------------------------- 14
+```python
+import tensorflow as tf
+from tensorflow.keras.models import Model
+from tensorflow.keras.layers import Input, Conv3D, MaxPooling3D, UpSampling3D, Dropout, concatenate
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.metrics import MeanIoU
+from tensorflow.keras.utils import to_categorical
+import numpy as np
+import nibabel as nib
+from sklearn.model_selection import train_test_split
+
+# Hyperparameters
+IMG_SIZE = 128
+VOLUME_SLICES = 16
+BATCH_SIZE = 1
+EPOCHS = 1
+LEARNING_RATE = 0.001
+
+# Load and preprocess data
+def load_data(file_path):
+    img = nib.load(file_path).get_fdata()
+    img = np.transpose(img, (2, 0, 1))  # Transpose to (slices, height, width)
+    img = np.expand_dims(img, axis=-1)  # Add channel dimension
+    return img
+
+def preprocess_data(data_dir):
+    images = []
+    masks = []
+    for modality in ['flair', 't1', 't1ce', 't2']:
+        img = load_data(f'{data_dir}/{modality}.nii.gz')
+        images.append(img)
+    mask = load_data(f'{data_dir}/segmentation.nii.gz')
+    masks.append(mask)
+    
+    images = np.concatenate(images, axis=-1)  # Combine modalities
+    masks = np.concatenate(masks, axis=-1)  # Combine masks
+    
+    # Resize and normalize
+    images = tf.image.resize(images, (IMG_SIZE, IMG_SIZE)).numpy()
+    masks = tf.image.resize(masks, (IMG_SIZE, IMG_SIZE)).numpy()
+    images = images / np.max(images)
+    
+    # One-hot encode masks
+    masks = to_categorical(masks, num_classes=4)
+    
+    return images, masks
+
+# Load dataset
+data_dir = 'path_to_dataset'
+images, masks = preprocess_data(data_dir)
+
+# Split dataset
+X_train, X_val, y_train, y_val = train_test_split(images, masks, test_size=0.2, random_state=42)
+
+# 3D U-Net Model
+def unet_3d(input_shape):
+    inputs = Input(input_shape)
+    
+    # Encoder
+    conv1 = Conv3D(32, 3, activation='relu', padding='same')(inputs)
+    conv1 = Conv3D(32, 3, activation='relu', padding='same')(conv1)
+    pool1 = MaxPooling3D(pool_size=(2, 2, 2))(conv1)
+    
+    conv2 = Conv3D(64, 3, activation='relu', padding='same')(pool1)
+    conv2 = Conv3D(64, 3, activation='relu', padding='same')(conv2)
+    pool2 = MaxPooling3D(pool_size=(2, 2, 2))(conv2)
+    
+    conv3 = Conv3D(128, 3, activation='relu', padding='same')(pool2)
+    conv3 = Conv3D(128, 3, activation='relu', padding='same')(conv3)
+    pool3 = MaxPooling3D(pool_size=(2, 2, 2))(conv3)
+    
+    conv4 = Conv3D(256, 3, activation='relu', padding='same')(pool3)
+    conv4 = Conv3D(256, 3, activation='relu', padding='same')(conv4)
+    drop4 = Dropout(0.2)(conv4)
+    pool4 = MaxPooling3D(pool_size=(2, 2, 2))(drop4)
+    
+    # Bottleneck
+    conv5 = Conv3D(512, 3, activation='relu', padding='same')(pool4)
+    conv5 = Conv3D(512, 3, activation='relu', padding='same')(conv5)
+    drop5 = Dropout(0.2)(conv5)
+    
+    # Decoder
+    up6 = Conv3D(256, 2, activation='relu', padding='same')(UpSampling3D(size=(2, 2, 2))(drop5))
+    merge6 = concatenate([drop4, up6], axis=4)
+    conv6 = Conv3D(256, 3, activation='relu', padding='same')(merge6)
+    conv6 = Conv3D(256, 3, activation='relu', padding='same')(conv6)
+    
+    up7 = Conv3D(128, 2, activation='relu', padding='same')(UpSampling3D(size=(2, 2, 2))(conv6))
+    merge7 = concatenate([conv3, up7], axis=4)
+    conv7 = Conv3D(128, 3, activation='relu', padding='same')(merge7)
+    conv7 = Conv3D(128, 3, activation='relu', padding='same')(conv7)
+    
+    up8 = Conv3D(64, 2, activation='relu', padding='same')(UpSampling3D(size=(2, 2, 2))(conv7))
+    merge8 = concatenate([conv2, up8], axis=4)
+    conv8 = Conv3D(64, 3, activation='relu', padding='same')(merge8)
+    conv8 = Conv3D(64, 3, activation='relu', padding='same')(conv8)
+    
+    up9 = Conv3D(32, 2, activation='relu', padding='same')(UpSampling3D(size=(2, 2, 2))(conv8))
+    merge9 = concatenate([conv1, up9], axis=4)
+    conv9 = Conv3D(32, 3, activation='relu', padding='same')(merge9)
+    conv9 = Conv3D(32, 3, activation='relu', padding='same')(conv9)
+    
+    # Output layer
+    outputs = Conv3D(4, (1, 1, 1), activation='softmax')(conv9)
+    
+    model = Model(inputs=[inputs], outputs=[outputs])
+    return model
+
+# Compile model
+model = unet_3d((VOLUME_SLICES, IMG_SIZE, IMG_SIZE, 4))
+model.compile(optimizer=Adam(learning_rate=LEARNING_RATE), loss='categorical_crossentropy', metrics=['accuracy', MeanIoU(num_classes=4)])
+
+# Train model
+model.fit(X_train, y_train, batch_size=BATCH_SIZE, epochs=EPOCHS, validation_data=(X_val, y_val))
+
+# Evaluate model
+model.evaluate(X_val, y_val)
+```
+------------------------------------- 15
+```python
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+import numpy as np
+
+# Define the Dice Coefficient Loss Function
+def dice_coef_loss(y_true, y_pred):
+    smooth = 1.
+    y_true_f = tf.reshape(y_true, [-1])
+    y_pred_f = tf.reshape(y_pred, [-1])
+    intersection = tf.reduce_sum(y_true_f * y_pred_f)
+    return 1 - (2. * intersection + smooth) / (tf.reduce_sum(y_true_f) + tf.reduce_sum(y_pred_f) + smooth)
+
+# Define the Model Architecture
+model = Sequential([
+    Conv2D(filters=64, kernel_size=(3, 3), activation='relu', input_shape=(256, 256, 1)),
+    MaxPooling2D(pool_size=(2, 2)),
+    Conv2D(filters=128, kernel_size=(3, 3), activation='relu'),
+    MaxPooling2D(pool_size=(2, 2)),
+    Conv2D(filters=256, kernel_size=(3, 3), activation='relu'),
+    MaxPooling2D(pool_size=(2, 2)),
+    Flatten(),
+    Dense(500, activation='relu'),
+    Dropout(0.5),
+    Dense(256*256, activation='sigmoid')
+])
+
+# Compile the Model
+model.compile(optimizer=Adam(learning_rate=0.0001), loss=dice_coef_loss, metrics=['accuracy'])
+
+# Data Preprocessing
+train_datagen = ImageDataGenerator(rescale=1./256)
+
+train_generator = train_datagen.flow_from_directory(
+    'path_to_training_images',
+    target_size=(256, 256),
+    color_mode='grayscale',
+    batch_size=8,
+    class_mode=None,
+    shuffle=False
+)
+
+label_generator = train_datagen.flow_from_directory(
+    'path_to_training_labels',
+    target_size=(256, 256),
+    color_mode='grayscale',
+    batch_size=8,
+    class_mode=None,
+    shuffle=False
+)
+
+# Combine Images and Labels
+train_data = zip(train_generator, label_generator)
+
+# Train the Model
+model.fit(
+    train_data,
+    steps_per_epoch=len(train_generator),
+    epochs=2
+)
+
+# Save the Model
+model.save('blood_vessel_segmentation_model.h5')
+```
+------------------------------------- 16
+```python
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+import numpy as np
+
+# Define the input and output shapes
+input_shape = (256, 512, 3)
+output_shape = (256, 512, 1)
+
+# Preprocessing function for images
+def preprocess_image(image):
+    image = tf.image.resize(image, (256, 512))
+    image = image / 255.0  # Normalize to [0, 1]
+    return image
+
+# Preprocessing function for masks
+def preprocess_mask(mask):
+    mask = tf.image.resize(mask, (256, 512))
+    mask = tf.where(mask > 0.5, 1.0, 0.0)  # Threshold to create binary mask
+    return mask
+
+# Data generator
+datagen = ImageDataGenerator(
+    preprocessing_function=preprocess_image,
+    validation_split=0.2
+)
+
+maskgen = ImageDataGenerator(
+    preprocessing_function=preprocess_mask,
+    validation_split=0.2
+)
+
+train_image_generator = datagen.flow_from_directory(
+    'path_to_images',
+    target_size=(256, 512),
+    batch_size=16,
+    class_mode=None,
+    subset='training'
+)
+
+train_mask_generator = maskgen.flow_from_directory(
+    'path_to_masks',
+    target_size=(256, 512),
+    batch_size=16,
+    class_mode=None,
+    subset='training'
+)
+
+val_image_generator = datagen.flow_from_directory(
+    'path_to_images',
+    target_size=(256, 512),
+    batch_size=16,
+    class_mode=None,
+    subset='validation'
+)
+
+val_mask_generator = maskgen.flow_from_directory(
+    'path_to_masks',
+    target_size=(256, 512),
+    batch_size=16,
+    class_mode=None,
+    subset='validation'
+)
+
+# Combine image and mask generators
+train_generator = zip(train_image_generator, train_mask_generator)
+val_generator = zip(val_image_generator, val_mask_generator)
+
+# Define the model
+model = Sequential([
+    Conv2D(64, (3, 3), activation='relu', input_shape=input_shape),
+    MaxPooling2D(pool_size=(2, 2)),
+    Conv2D(128, (3, 3), activation='relu'),
+    MaxPooling2D(pool_size=(2, 2)),
+    Conv2D(256, (3, 3), activation='relu'),
+    MaxPooling2D(pool_size=(2, 2)),
+    Conv2D(512, (3, 3), activation='relu'),
+    MaxPooling2D(pool_size=(2, 2)),
+    Flatten(),
+    Dense(128, activation='relu'),
+    Dropout(0.5),
+    Dense(1, activation='sigmoid')
+])
+
+# Compile the model
+model.compile(
+    optimizer=Adam(learning_rate=0.0001),
+    loss='sparse_categorical_crossentropy',
+    metrics=['binary_accuracy']
+)
+
+# Train the model
+model.fit(
+    train_generator,
+    steps_per_epoch=len(train_image_generator),
+    validation_data=val_generator,
+    validation_steps=len(val_image_generator),
+    epochs=40
+)
+```
+------------------------------------- 17
+```python
+import tensorflow as tf
+from tensorflow.keras.models import Model
+from tensorflow.keras.layers import Input, Conv2D, BatchNormalization, Activation, MaxPool2D, Conv2DTranspose, concatenate
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.losses import BinaryCrossentropy
+from tensorflow.keras.preprocessing.image import load_img, img_to_array
+import numpy as np
+import json
+from sklearn.model_selection import train_test_split
+
+# Load and preprocess data
+def load_data(image_dir, json_file):
+    images = []
+    masks = []
+    
+    with open(json_file, 'r') as f:
+        data = json.load(f)
+    
+    for img_name, mask_coords in data.items():
+        img_path = f"{image_dir}/{img_name}"
+        img = load_img(img_path, target_size=(512, 512))
+        img = img_to_array(img) / 255.0
+        images.append(img)
+        
+        mask = np.zeros((512, 512, 1))
+        for coord in mask_coords:
+            mask[coord[1]:coord[3], coord[0]:coord[2], 0] = 1
+        masks.append(mask)
+    
+    images = np.array(images)
+    masks = np.array(masks)
+    
+    return images, masks
+
+# Load dataset
+image_dir = 'path_to_images'
+json_file = 'path_to_json_file'
+images, masks = load_data(image_dir, json_file)
+
+# Split data into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(images, masks, test_size=0.2, random_state=42)
+
+# U-Net model
+def unet_model(input_shape):
+    inputs = Input(input_shape)
+    
+    # Encoder
+    conv1 = Conv2D(64, kernel_size=3, padding='same')(inputs)
+    conv1 = BatchNormalization()(conv1)
+    conv1 = Activation('relu')(conv1)
+    conv1 = Conv2D(64, kernel_size=3, padding='same')(conv1)
+    conv1 = BatchNormalization()(conv1)
+    conv1 = Activation('relu')(conv1)
+    pool1 = MaxPool2D(pool_size=(2, 2), strides=(2, 2))(conv1)
+    
+    # Decoder
+    up1 = Conv2DTranspose(64, kernel_size=2, strides=2, padding='same')(pool1)
+    merge1 = concatenate([conv1, up1], axis=3)
+    conv2 = Conv2D(64, kernel_size=3, padding='same')(merge1)
+    conv2 = BatchNormalization()(conv2)
+    conv2 = Activation('relu')(conv2)
+    conv2 = Conv2D(64, kernel_size=3, padding='same')(conv2)
+    conv2 = BatchNormalization()(conv2)
+    conv2 = Activation('relu')(conv2)
+    
+    outputs = Conv2D(1, kernel_size=1, padding='same', activation='sigmoid')(conv2)
+    
+    model = Model(inputs, outputs)
+    return model
+
+# Compile model
+model = unet_model((512, 512, 3))
+model.compile(optimizer=Adam(learning_rate=0.001), loss=BinaryCrossentropy(), metrics=['accuracy'])
+
+# Train model
+model.fit(X_train, y_train, batch_size=4, epochs=10, validation_data=(X_test, y_test))
+
+# Evaluate model
+model.evaluate(X_test, y_test)
+```
+------------------------------------- 18
+```python
+import os
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from sklearn.model_selection import train_test_split
+import nibabel as nib
+
+# Load images and masks from specified directories
+def load_data(image_dir, mask_dir):
+    images = []
+    masks = []
+    for img_name in os.listdir(image_dir):
+        img_path = os.path.join(image_dir, img_name)
+        mask_path = os.path.join(mask_dir, img_name)
+        img = nib.load(img_path).get_fdata()
+        mask = nib.load(mask_path).get_fdata()
+        images.append(img)
+        masks.append(mask)
+    return np.array(images), np.array(masks)
+
+# Preprocess data
+def preprocess(images, masks):
+    # Resize images and masks to (256, 256)
+    images = tf.image.resize(images, (256, 256))
+    masks = tf.image.resize(masks, (256, 256))
+    
+    # Normalize pixel values to the range [0, 1]
+    images = images / 255.0
+    masks = masks / 3.0  # Since masks have values 0, 1, 2, 3
+    
+    return images, masks
+
+# Data augmentation
+def augment_data(images, masks):
+    datagen = ImageDataGenerator(
+        rotation_range=20,
+        width_shift_range=0.1,
+        height_shift_range=0.1,
+        shear_range=0.1,
+        zoom_range=0.1,
+        horizontal_flip=True,
+        vertical_flip=True,
+        brightness_range=[0.8, 1.2]
+    )
+    aug_images = []
+    aug_masks = []
+    for img, mask in zip(images, masks):
+        img = np.expand_dims(img, axis=-1)
+        mask = np.expand_dims(mask, axis=-1)
+        for x_batch, y_batch in datagen.flow(np.array([img]), np.array([mask]), batch_size=1):
+            aug_images.append(x_batch[0])
+            aug_masks.append(y_batch[0])
+            break
+    return np.array(aug_images), np.array(aug_masks)
+
+# Load and preprocess data
+image_dir = 'path_to_image_directory'
+mask_dir = 'path_to_mask_directory'
+images, masks = load_data(image_dir, mask_dir)
+images, masks = preprocess(images, masks)
+
+# Split data into training and validation sets
+X_train, X_val, y_train, y_val = train_test_split(images, masks, test_size=0.2, random_state=42)
+
+# Augment training data
+X_train, y_train = augment_data(X_train, y_train)
+
+# Build the model
+model = Sequential([
+    Conv2D(32, (3, 3), activation='relu', padding='same', input_shape=(256, 256, 1)),
+    MaxPooling2D((2, 2)),
+    Conv2D(64, (3, 3), activation='relu', padding='same'),
+    MaxPooling2D((2, 2)),
+    Conv2D(128, (3, 3), activation='relu', padding='same'),
+    MaxPooling2D((2, 2)),
+    Flatten(),
+    Dense(512, activation='relu'),
+    Dropout(0.5),
+    Dense(4, activation='softmax')
+])
+
+# Compile the model
+model.compile(optimizer=Adam(learning_rate=0.001), loss='categorical_crossentropy', metrics=['accuracy'])
+
+# Train the model
+model.fit(X_train, y_train, batch_size=32, epochs=1000, validation_data=(X_val, y_val))
+
+# Save the model
+model.save('glioma_segmentation_model.h5')
+```
+------------------------------------- 19
+```python
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Conv2D, BatchNormalization, MaxPool2D, Flatten, Dense
+from tensorflow.keras.optimizers import Adam
+from sklearn.model_selection import train_test_split
+import numpy as np
+import pandas as pd
+
+# Load and preprocess the dataset
+def load_and_preprocess_data(data_path):
+    # Load the dataset
+    data = pd.read_csv(data_path)
+    
+    # Extract images and keypoints
+    images = data.iloc[:, :96*96].values.reshape(-1, 96, 96)
+    keypoints = data.iloc[:, 96*96:].values
+    
+    # Convert grayscale to RGB
+    images_rgb = np.stack((images,) * 3, axis=-1)
+    
+    # Normalize images to [0, 1]
+    images_rgb = images_rgb / 255.0
+    
+    # Fill missing values using forward fill
+    keypoints = keypoints.fillna(method='ffill')
+    
+    return images_rgb, keypoints
+
+# Build the model
+def build_model():
+    model = Sequential([
+        Conv2D(128, (11, 11), strides=(4, 4), activation='relu', input_shape=(96, 96, 3)),
+        BatchNormalization(),
+        MaxPool2D(pool_size=(2, 2)),
+        Conv2D(256, (5, 5), strides=(1, 1), activation='relu', padding='same'),
+        BatchNormalization(),
+        MaxPool2D(pool_size=(3, 3)),
+        Conv2D(256, (3, 3), strides=(1, 1), activation='relu', padding='same'),
+        BatchNormalization(),
+        Conv2D(256, (1, 1), strides=(1, 1), activation='relu', padding='same'),
+        BatchNormalization(),
+        Conv2D(256, (1, 1), strides=(1, 1), activation='relu', padding='same'),
+        BatchNormalization(),
+        MaxPool2D(pool_size=(2, 2)),
+        Flatten(),
+        Dense(256, activation='relu'),
+        Dense(128, activation='relu'),
+        Dense(30)
+    ])
+    
+    return model
+
+# Compile and train the model
+def train_model(model, X_train, y_train, X_val, y_val):
+    optimizer = Adam(learning_rate=0.00005)
+    model.compile(optimizer=optimizer, loss='mean_squared_error', metrics=['accuracy'])
+    
+    model.fit(X_train, y_train, batch_size=32, epochs=10, validation_data=(X_val, y_val))
+    
+    return model
+
+# Evaluate the model
+def evaluate_model(model, X_test, y_test):
+    loss, accuracy = model.evaluate(X_test, y_test)
+    print(f"Test Loss: {loss}, Test Accuracy: {accuracy}")
+
+# Main function
+def main():
+    # Load and preprocess data
+    data_path = 'path_to_your_dataset.csv'
+    images, keypoints = load_and_preprocess_data(data_path)
+    
+    # Split the data into training and testing sets
+    X_train, X_test, y_train, y_test = train_test_split(images, keypoints, test_size=0.2, random_state=42)
+    
+    # Build the model
+    model = build_model()
+    
+    # Train the model
+    model = train_model(model, X_train, y_train, X_test, y_test)
+    
+    # Evaluate the model
+    evaluate_model(model, X_test, y_test)
+
+if __name__ == "__main__":
+    main()
+```
+------------------------------------- 20
+```python
+import tensorflow as tf
+from tensorflow.keras.applications import ResNet50
+from tensorflow.keras.layers import Input, Conv2D, UpSampling2D, concatenate
+from tensorflow.keras.models import Model
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.preprocessing.image import load_img, img_to_array
+import numpy as np
+import pandas as pd
+import os
+
+# Hyperparameters
+LEARNING_RATE = 0.0001
+BATCH_SIZE = 16
+EPOCHS = 15
+
+# Custom loss function for depth estimation
+def depth_loss(y_true, y_pred):
+    return tf.reduce_mean(tf.abs(y_true - y_pred))
+
+# Custom metric for depth accuracy
+def depth_acc(y_true, y_pred):
+    return tf.reduce_mean(tf.abs(y_true - y_pred) / y_true)
+
+# Data preprocessing function
+def preprocess_data(image_path, depth_path):
+    image = load_img(image_path, target_size=(240, 320))
+    image = img_to_array(image) / 255.0
+    depth = load_img(depth_path, target_size=(240, 320), color_mode="grayscale")
+    depth = img_to_array(depth) / 255.0
+    return image, depth
+
+# Data generator
+def data_generator(csv_path, batch_size):
+    df = pd.read_csv(csv_path)
+    while True:
+        indices = np.random.permutation(df.shape[0])
+        for start in range(0, len(indices), batch_size):
+            batch_indices = indices[start:start + batch_size]
+            batch_images = []
+            batch_depths = []
+            for idx in batch_indices:
+                image_path = df.iloc[idx]['image_path']
+                depth_path = df.iloc[idx]['depth_path']
+                image, depth = preprocess_data(image_path, depth_path)
+                batch_images.append(image)
+                batch_depths.append(depth)
+            yield np.array(batch_images), np.array(batch_depths)
+
+# ResNet-based U-Net model
+def build_model():
+    inputs = Input(shape=(240, 320, 3))
+    resnet = ResNet50(include_top=False, weights='imagenet', input_tensor=inputs)
+    resnet.trainable = False
+    
+    # U-Net decoder
+    up1 = UpSampling2D(size=(2, 2))(resnet.output)
+    conv1 = Conv2D(512, 3, activation='relu', padding='same')(up1)
+    up2 = UpSampling2D(size=(2, 2))(conv1)
+    conv2 = Conv2D(256, 3, activation='relu', padding='same')(up2)
+    up3 = UpSampling2D(size=(2, 2))(conv2)
+    conv3 = Conv2D(128, 3, activation='relu', padding='same')(up3)
+    up4 = UpSampling2D(size=(2, 2))(conv3)
+    conv4 = Conv2D(64, 3, activation='relu', padding='same')(up4)
+    up5 = UpSampling2D(size=(2, 2))(conv4)
+    conv5 = Conv2D(32, 3, activation='relu', padding='same')(up5)
+    
+    outputs = Conv2D(1, 3, activation='sigmoid', padding='same')(conv5)
+    
+    model = Model(inputs=inputs, outputs=outputs)
+    model.compile(optimizer=Adam(learning_rate=LEARNING_RATE), loss=depth_loss, metrics=[depth_acc])
+    return model
+
+# Load CSV paths
+train_csv_path = 'path_to_train_csv.csv'
+test_csv_path = 'path_to_test_csv.csv'
+
+# Build and train the model
+model = build_model()
+train_generator = data_generator(train_csv_path, BATCH_SIZE)
+model.fit(train_generator, steps_per_epoch=300, epochs=EPOCHS)
+
+# Evaluate the model
+test_generator = data_generator(test_csv_path, BATCH_SIZE)
+evaluation = model.evaluate(test_generator, steps=100)
+print(f"Test Loss: {evaluation[0]}, Test Depth Accuracy: {evaluation[1]}")
+```
+------------------------------------- 21
+```python
+import tensorflow as tf
+from tensorflow.keras.layers import Input, Conv2D, BatchNormalization, Activation
+from tensorflow.keras.models import Model
+from tensorflow.keras.optimizers import RMSprop
+import h5py
+import numpy as np
+from sklearn.model_selection import train_test_split
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+
+# Load the dataset
+def load_data(h5_path):
+    with h5py.File(h5_path, 'r') as hf:
+        images = np.array(hf['images'])
+        density_maps = np.array(hf['density_maps'])
+    return images, density_maps
+
+# Preprocess the data
+def preprocess_data(images, density_maps):
+    images = images.astype('float16') / 255.0
+    density_maps = density_maps.astype('float16')
+    return images, density_maps
+
+# Data augmentation
+datagen = ImageDataGenerator(
+    rotation_range=15,
+    width_shift_range=0.1,
+    height_shift_range=0.1,
+    shear_range=0.01,
+    zoom_range=[0.9, 1.25],
+    horizontal_flip=True,
+    vertical_flip=False,
+    fill_mode='reflect',
+    data_format='channels_last'
+)
+
+# Build the model
+def build_model():
+    inputs = Input(shape=(None, None, 3))
+    
+    x = Conv2D(filters=512, kernel_size=(3, 3), dilation_rate=2, padding='same')(inputs)
+    x = BatchNormalization()(x)
+    x = Activation('relu')(x)
+    
+    x = Conv2D(filters=512, kernel_size=(3, 3), dilation_rate=2, padding='same')(x)
+    x = BatchNormalization()(x)
+    x = Activation('relu')(x)
+    
+    x = Conv2D(filters=256, kernel_size=(3, 3), dilation_rate=2, padding='same')(x)
+    x = BatchNormalization()(x)
+    x = Activation('relu')(x)
+    
+    x = Conv2D(filters=128, kernel_size=(3, 3), dilation_rate=2, padding='same')(x)
+    x = BatchNormalization()(x)
+    x = Activation('relu')(x)
+    
+    x = Conv2D(filters=64, kernel_size=(3, 3), dilation_rate=2, padding='same')(x)
+    x = BatchNormalization()(x)
+    x = Activation('relu')(x)
+    
+    outputs = Conv2D(filters=1, kernel_size=(1, 1), padding='same', activation='sigmoid')(x)
+    
+    model = Model(inputs=inputs, outputs=outputs)
+    return model
+
+# Custom metric: Mean Absolute Error on Density Maps
+def density_mae(y_true, y_pred):
+    return tf.reduce_mean(tf.abs(y_true - y_pred))
+
+# Compile the model
+model = build_model()
+model.compile(optimizer=RMSprop(learning_rate=0.0001), loss='binary_crossentropy', metrics=[density_mae])
+
+# Load and preprocess the data
+images, density_maps = load_data('path_to_hdf5_file.h5')
+images, density_maps = preprocess_data(images, density_maps)
+
+# Split the data into training and validation sets
+X_train, X_val, y_train, y_val = train_test_split(images, density_maps, test_size=0.2, random_state=42)
+
+# Train the model
+batch_size = 8
+epochs = 80
+
+train_generator = datagen.flow(X_train, y_train, batch_size=batch_size)
+val_generator = datagen.flow(X_val, y_val, batch_size=batch_size)
+
+model.fit(train_generator, validation_data=val_generator, epochs=epochs, steps_per_epoch=len(X_train) // batch_size, validation_steps=len(X_val) // batch_size)
+
+# Save the model
+model.save('crowd_density_model.h5')
+```
+------------------------------------- 22
+```python
+import tensorflow as tf
+from tensorflow.keras.layers import Input, Conv2D, Concatenate, Dense, GlobalAveragePooling2D
+from tensorflow.keras.models import Model
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.applications import EfficientNetB0
+
+# Hyperparameters
+image_height = 224
+image_width = 224
+num_channels = 3
+efficientnet_input_shape = (224, 224, 3)
+learning_rate = 0.001
+batch_size = 32
+epochs = 10
+
+# Load and preprocess data
+def parse_tfrecord(example_proto):
+    feature_description = {
+        'image': tf.io.FixedLenFeature([], tf.string),
+        'label': tf.io.FixedLenFeature([], tf.int64),
+    }
+    example = tf.io.parse_single_example(example_proto, feature_description)
+    image = tf.image.decode_jpeg(example['image'], channels=num_channels)
+    image = tf.image.resize(image, [image_height, image_width])
+    image = tf.cast(image, tf.float32) / 255.0
+    label = tf.cast(example['label'], tf.float32)
+    return image, label
+
+def load_dataset(filenames, batch_size):
+    dataset = tf.data.TFRecordDataset(filenames)
+    dataset = dataset.map(parse_tfrecord)
+    dataset = dataset.shuffle(buffer_size=1000).batch(batch_size).prefetch(tf.data.experimental.AUTOTUNE)
+    return dataset
+
+train_dataset = load_dataset(['train.tfrecord'], batch_size)
+test_dataset = load_dataset(['test.tfrecord'], batch_size)
+
+# Model Architecture
+# EfficientNet Encoder
+efficientnet_input = Input(shape=efficientnet_input_shape, name='efficientnet_input')
+efficientnet = EfficientNetB0(include_top=False, weights='imagenet', input_tensor=efficientnet_input)
+efficientnet_output = GlobalAveragePooling2D()(efficientnet.output)
+
+# StopNet Encoder (Placeholder)
+stopnet_input = Input(shape=(image_height, image_width, num_channels), name='stopnet_input')
+stopnet_output = Conv2D(64, (3, 3), activation='relu')(stopnet_input)
+stopnet_output = GlobalAveragePooling2D()(stopnet_output)
+
+# Concatenate Encoder Outputs
+concatenated = Concatenate()([efficientnet_output, stopnet_output])
+
+# Additional Convolutional Layers (Placeholder)
+x = Dense(128, activation='relu')(concatenated)
+output = Dense(1, activation='linear')(x)
+
+# Build the Model
+model = Model(inputs=[efficientnet_input, stopnet_input], outputs=output)
+
+# Compile the Model
+model.compile(optimizer=Adam(learning_rate=learning_rate), loss='mse', metrics=['accuracy'])
+
+# Train the Model
+model.fit(train_dataset, epochs=epochs, validation_data=test_dataset)
+
+# Evaluate the Model
+model.evaluate(test_dataset)
+```
+------------------------------------- 23
+```python
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, Dropout, Bidirectional, LSTM, Input
+from tensorflow.keras.optimizers import Adam
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.decomposition import PCA
+from sklearn.model_selection import train_test_split
+import pandas as pd
+import numpy as np
+
+# Load and preprocess the dataset
+# Assuming the dataset is loaded into a pandas DataFrame called 'df'
+# df = pd.read_csv('network_traffic_data.csv')
+
+# Example dataset creation for illustration
+np.random.seed(42)
+num_samples = 1000
+num_features = 10
+df = pd.DataFrame({
+    'flow_duration': np.random.rand(num_samples),
+    'total_forward_packets': np.random.rand(num_samples),
+    'flow_bytes_per_second': np.random.rand(num_samples),
+    # Add other features here
+    'label': np.random.choice(['normal', 'DoS'], num_samples)
+})
+
+# Handle null values
+df.fillna(df.mean(), inplace=True)
+
+# Standardize numerical features
+scaler = StandardScaler()
+numerical_features = df.drop(columns=['label']).values
+scaled_features = scaler.fit_transform(numerical_features)
+
+# Perform PCA for dimensionality reduction
+pca = PCA(n_components=5)
+reduced_features = pca.fit_transform(scaled_features)
+
+# Encode categorical features (label)
+encoder = OneHotEncoder(sparse=False)
+labels = encoder.fit_transform(df[['label']])
+
+# Reshape features to include a time step dimension
+reshaped_features = reduced_features.reshape((reduced_features.shape[0], 1, reduced_features.shape[1]))
+
+# Split the dataset into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(reshaped_features, labels, test_size=0.2, random_state=42)
+
+# Build the bi-directional LSTM model
+model = Sequential()
+model.add(Input(shape=(1, reduced_features.shape[1])))
+model.add(Bidirectional(LSTM(units=64, activation='tanh')))
+model.add(Dropout(0.2))
+model.add(Dense(units=1, activation='sigmoid'))
+
+# Compile the model
+optimizer = Adam(learning_rate=0.001)
+model.compile(optimizer=optimizer, loss='binary_crossentropy', metrics=['accuracy'])
+
+# Train the model
+model.fit(X_train, y_train, batch_size=32, epochs=10, validation_data=(X_test, y_test))
+
+# Evaluate the model
+loss, accuracy = model.evaluate(X_test, y_test)
+print(f'Test Loss: {loss}')
+print(f'Test Accuracy: {accuracy}')
+```
+------------------------------------- 24
+```python
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Conv2D, LeakyReLU, BatchNormalization, Concatenate, MaxPooling2D, Flatten, Dense, Dropout
+from tensorflow.keras.regularizers import l2
+from tensorflow.keras.optimizers import Adam
+from sklearn.model_selection import StratifiedKFold
+
+# Load dataset
+X = np.load('path_to_features.npy')  # Shape: (num_samples, 40, 249, 1)
+y = np.load('path_to_labels.npy')    # Shape: (num_samples, 10)
+
+# Convert labels to categorical format
+y = tf.keras.utils.to_categorical(y, num_classes=10)
+
+# Define the model
+def create_model(input_shape, num_classes):
+    model = Sequential()
+    
+    # First branch
+    branch1 = Sequential()
+    branch1.add(Conv2D(32, (1, 5), padding='same', kernel_regularizer=l2(0.01), input_shape=input_shape))
+    branch1.add(LeakyReLU(alpha=0.1))
+    branch1.add(BatchNormalization())
+    branch1.add(Conv2D(32, (5, 1), padding='same', kernel_regularizer=l2(0.01)))
+    branch1.add(LeakyReLU(alpha=0.1))
+    branch1.add(BatchNormalization())
+    
+    # Second branch
+    branch2 = Sequential()
+    branch2.add(Conv2D(32, (6, 6), padding='same', kernel_regularizer=l2(0.01), input_shape=input_shape))
+    branch2.add(MaxPooling2D(pool_size=(4, 2), strides=(4, 2)))
+    branch2.add(LeakyReLU(alpha=0.1))
+    branch2.add(BatchNormalization())
+    
+    # Concatenate branches
+    model.add(Concatenate()([branch1.output, branch2.output]))
+    
+    # Continue with the rest of the layers
+    model.add(Conv2D(48, (5, 5), padding='same', kernel_regularizer=l2(0.01)))
+    model.add(LeakyReLU(alpha=0.1))
+    model.add(BatchNormalization())
+    
+    model.add(Conv2D(64, (4, 4), padding='same', kernel_regularizer=l2(0.01)))
+    model.add(MaxPooling2D(pool_size=(4, 2), strides=(4, 2)))
+    model.add(LeakyReLU(alpha=0.1))
+    model.add(BatchNormalization())
+    
+    model.add(Conv2D(74, (4, 4), padding='same', kernel_regularizer=l2(0.01)))
+    model.add(LeakyReLU(alpha=0.1))
+    model.add(BatchNormalization())
+    
+    model.add(Flatten())
+    model.add(Dense(64, activation='relu'))
+    model.add(Dropout(0.5))
+    model.add(BatchNormalization())
+    model.add(Dense(num_classes, activation='softmax'))
+    
+    return model
+
+# Hyperparameters
+num_classes = 10
+input_shape = (40, 249, 1)
+optimizer = Adam(learning_rate=0.0001)
+batch_size = 64
+epochs = 60
+
+# Stratified K-Fold cross-validation
+skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+
+for train_index, val_index in skf.split(X, np.argmax(y, axis=1)):
+    X_train, X_val = X[train_index], X[val_index]
+    y_train, y_val = y[train_index], y[val_index]
+    
+    model = create_model(input_shape, num_classes)
+    model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
+    
+    model.fit(X_train, y_train, batch_size=batch_size, epochs=epochs, validation_data=(X_val, y_val))
+```
+------------------------------------- 25
+```python
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, BatchNormalization, Activation, GaussianDropout
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.losses import BinaryCrossentropy
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.decomposition import PCA
+from sklearn.ensemble import IsolationForest
+from sklearn.pipeline import Pipeline
+from sklearn.compose import ColumnTransformer
+from sklearn.model_selection import train_test_split
+import numpy as np
+import pandas as pd
+
+# Load dataset
+# Assuming the dataset is loaded into a pandas DataFrame
+# df = pd.read_csv('fault_dataset.csv')
+# X = df.drop(columns=['fault_category_1', 'fault_category_2', ..., 'fault_category_7'])
+# y = df[['fault_category_1', 'fault_category_2', ..., 'fault_category_7']]
+
+# Split dataset into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Preprocessing pipeline
+numeric_features = X_train.select_dtypes(include=['float64', 'int64']).columns
+categorical_features = X_train.select_dtypes(include=['object']).columns
+
+numeric_transformer = Pipeline(steps=[
+    ('scaler', StandardScaler()),
+    ('pca', PCA(n_components=0.95))
+])
+
+categorical_transformer = Pipeline(steps=[
+    ('onehot', OneHotEncoder(handle_unknown='ignore'))
+])
+
+preprocessor = ColumnTransformer(
+    transformers=[
+        ('num', numeric_transformer, numeric_features),
+        ('cat', categorical_transformer, categorical_features)
+    ])
+
+# Anomaly detection using Isolation Forest
+iso_forest = IsolationForest(contamination=0.1, random_state=42)
+X_train = iso_forest.fit_predict(X_train)
+X_train = X_train[X_train == 1]
+y_train = y_train.iloc[X_train == 1]
+
+# Preprocess the data
+X_train = preprocessor.fit_transform(X_train)
+X_test = preprocessor.transform(X_test)
+
+# Define the model
+def build_model(hp):
+    model = Sequential()
+    model.add(Dense(units=hp.Choice('unit1', [8, 16, len(X.columns)]), input_shape=(X_train.shape[1],)))
+    model.add(BatchNormalization())
+    model.add(Activation(hp.Choice('activation1', ['relu', 'tanh', 'swish'])))
+    model.add(GaussianDropout(rate=hp.Choice('unit_drop1', [0.7, 0.5, 0.3, 0.0]), seed=1))
+    model.add(Dense(units=hp.Choice('unit2', [4, 8, 16])))
+    model.add(BatchNormalization())
+    model.add(Activation(hp.Choice('activation2', ['relu', 'tanh', 'swish'])))
+    model.add(GaussianDropout(rate=hp.Choice('unit_drop2', [0.3, 0.1, 0.0]), seed=1))
+    model.add(Dense(units=hp.Choice('unit3', [4, 8, 16])))
+    model.add(BatchNormalization())
+    model.add(Activation(hp.Choice('activation3', ['relu', 'tanh', 'swish'])))
+    model.add(GaussianDropout(rate=hp.Choice('unit_drop3', [0.3, 0.1, 0.0]), seed=1))
+    model.add(Dense(units=hp.Choice('unit4', [4, 8, 16])))
+    model.add(BatchNormalization())
+    model.add(Activation(hp.Choice('activation4', ['relu', 'tanh', 'swish'])))
+    model.add(GaussianDropout(rate=hp.Choice('unit_drop4', [0.3, 0.1, 0.0]), seed=1))
+    model.add(Dense(7))
+    model.add(Activation('sigmoid'))
+    
+    model.compile(optimizer=Adam(learning_rate=0.003),
+                  loss=BinaryCrossentropy(),
+                  metrics=[BinaryCrossentropy()])
+    return model
+
+# Hyperparameter tuning using Keras Tuner
+# from kerastuner.tuners import RandomSearch
+# tuner = RandomSearch(
+#     build_model,
+#     objective='val_loss',
+#     max_trials=5,
+#     executions_per_trial=3,
+#     directory='fault_classification',
+#     project_name='fault_detection')
+
+# tuner.search(X_train, y_train, epochs=50, batch_size=512, validation_data=(X_test, y_test))
+
+# Get the best model
+# best_model = tuner.get_best_models(num_models=1)[0]
+
+# Train the best model
+# best_model.fit(X_train, y_train, epochs=50, batch_size=512, validation_data=(X_test, y_test))
+
+# Evaluate the model
+# loss, accuracy = best_model.evaluate(X_test, y_test)
+# print(f'Test Loss: {loss}')
+# print(f'Test Accuracy: {accuracy}')
+```
+------------------------------------- 26
+```python
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense
+from tensorflow.keras.optimizers import Adam
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+import pandas as pd
+import numpy as np
+
+# Load the dataset
+data = pd.read_csv('patient_health_records.csv')
+
+# Separate features and target
+X = data.drop('DiagPeriodL90D', axis=1)
+y = data['DiagPeriodL90D']
+
+# Identify categorical and numerical columns
+categorical_cols = X.select_dtypes(include=['object']).columns
+numerical_cols = X.select_dtypes(include=['float64', 'int64']).columns
+
+# Preprocessing for numerical data: standard scaling
+numerical_transformer = StandardScaler()
+
+# Preprocessing for categorical data: one-hot encoding
+categorical_transformer = OneHotEncoder(handle_unknown='ignore')
+
+# Combine preprocessing steps
+preprocessor = ColumnTransformer(
+    transformers=[
+        ('num', numerical_transformer, numerical_cols),
+        ('cat', categorical_transformer, categorical_cols)
+    ])
+
+# Split the dataset into training and validation sets
+X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Apply preprocessing
+X_train = preprocessor.fit_transform(X_train)
+X_val = preprocessor.transform(X_val)
+
+# Convert target labels to numpy array
+y_train = np.array(y_train)
+y_val = np.array(y_val)
+
+# Determine the number of unique states for the output layer
+num_states = len(np.unique(y_train))
+
+# Build the model
+model = Sequential([
+    Dense(units=128, activation='relu', input_shape=(X_train.shape[1],)),
+    Dense(units=89, activation='leaky_relu'),
+    Dense(units=num_states, activation='softmax')
+])
+
+# Compile the model
+model.compile(optimizer=Adam(),
+              loss='sparse_categorical_crossentropy',
+              metrics=['accuracy'])
+
+# Train the model
+history = model.fit(X_train, y_train,
+                    batch_size=15,
+                    epochs=35,
+                    validation_data=(X_val, y_val))
+
+# Evaluate the model
+test_loss, test_acc = model.evaluate(X_val, y_val)
+print(f'Test accuracy: {test_acc}')
+```
+------------------------------------- 27
+```python
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import MinMaxScaler, OneHotEncoder
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense
+from tensorflow.keras.optimizers import Adam
+from sklearn.metrics import roc_auc_score
+
+# Load the dataset
+data = pd.read_csv('patient_survival_data.csv')
+
+# Separate features and target
+X = data.drop('target', axis=1)
+y = data['target']
+
+# Drop columns with more than 50% missing values
+X = X.dropna(thresh=0.5*len(X), axis=1)
+
+# Split the dataset into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Identify numerical and categorical columns
+numerical_cols = X_train.select_dtypes(include=['int64', 'float64']).columns
+categorical_cols = X_train.select_dtypes(include=['object', 'category']).columns
+
+# Handle missing values in numerical columns
+numerical_imputer = SimpleImputer(strategy='mean')
+X_train[numerical_cols] = numerical_imputer.fit_transform(X_train[numerical_cols])
+X_test[numerical_cols] = numerical_imputer.transform(X_test[numerical_cols])
+
+# Handle missing values in categorical columns
+categorical_imputer = SimpleImputer(strategy='most_frequent')
+X_train[categorical_cols] = categorical_imputer.fit_transform(X_train[categorical_cols])
+X_test[categorical_cols] = categorical_imputer.transform(X_test[categorical_cols])
+
+# One-hot encode categorical columns
+encoder = OneHotEncoder(sparse=False, handle_unknown='ignore')
+X_train_encoded = encoder.fit_transform(X_train[categorical_cols])
+X_test_encoded = encoder.transform(X_test[categorical_cols])
+
+# Combine numerical and encoded categorical features
+X_train = np.hstack((X_train[numerical_cols].values, X_train_encoded))
+X_test = np.hstack((X_test[numerical_cols].values, X_test_encoded))
+
+# Scale the features
+scaler = MinMaxScaler()
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+
+# Build the model
+model = Sequential([
+    Dense(64, activation='relu', input_shape=(X_train.shape[1],)),
+    Dense(32, activation='relu'),
+    Dense(16, activation='relu'),
+    Dense(1, activation='sigmoid')
+])
+
+# Compile the model
+model.compile(optimizer=Adam(learning_rate=0.01), loss='binary_crossentropy', metrics=['AUC'])
+
+# Train the model
+model.fit(X_train, y_train, batch_size=32, epochs=25, validation_split=0.2)
+
+# Evaluate the model
+y_pred = model.predict(X_test)
+auc_score = roc_auc_score(y_test, y_pred)
+print(f'AUC Score: {auc_score}')
+```
+------------------------------------- 28
+```python
+import numpy as np
+import pandas as pd
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, Dropout
+from tensorflow.keras.optimizers import Adam
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import OneHotEncoder
+
+# Load the dataset
+data = pd.read_csv('patient_records.csv')
+
+# Drop unnecessary columns if any
+data = data.drop(['Unnamed: 0', 'Unnamed: 0.1'], axis=1)
+
+# Handle missing values by filling with random values from a normal distribution
+for column in data.columns:
+    if data[column].isnull().sum() > 0:
+        mean = data[column].mean()
+        std = data[column].std()
+        data[column] = data[column].fillna(pd.Series(np.random.normal(mean, std, size=len(data))))
+
+# One-hot encode categorical variables
+categorical_columns = ['zip code', 'race', 'payer type', 'diagnosis codes']
+data = pd.get_dummies(data, columns=categorical_columns)
+
+# Split the dataset into features and target
+X = data.drop('DiagPeriodL90D', axis=1)
+y = data['DiagPeriodL90D']
+
+# Split the data into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Define the model
+model = Sequential([
+    Dense(128, activation='relu', input_dim=X_train.shape[1]),
+    Dropout(0.4),
+    Dense(40, activation='LeakyReLU'),
+    Dropout(0.4),
+    Dense(8, activation='LeakyReLU'),
+    Dense(1, activation='sigmoid')
+])
+
+# Compile the model
+model.compile(optimizer=Adam(learning_rate=0.001), loss='binary_crossentropy', metrics=['accuracy'])
+
+# Train the model
+model.fit(X_train, y_train, batch_size=1250, epochs=150, validation_data=(X_test, y_test))
+
+# Evaluate the model
+loss, accuracy = model.evaluate(X_test, y_test)
+print(f'Test Loss: {loss}')
+print(f'Test Accuracy: {accuracy}')
+```
+------------------------------------- 29
+```python
+import numpy as np
+import pandas as pd
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import LSTM, Dense, Dropout
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.model_selection import train_test_split
+from statsmodels.tsa.statespace.sarimax import SARIMAX
+
+# Load and preprocess the dataset
+def load_and_preprocess_data(file_path):
+    # Load the dataset
+    data = pd.read_csv(file_path)
+    
+    # Handle missing values
+    data.fillna(method='ffill', inplace=True)
+    
+    # Log transformation to handle skewness
+    data['number_of_products_sold'] = np.log1p(data['number_of_products_sold'])
+    
+    # One-hot encode categorical variables
+    categorical_cols = ['country', 'store', 'product']
+    data = pd.get_dummies(data, columns=categorical_cols)
+    
+    # Standardize and normalize the data
+    scaler = StandardScaler()
+    data_scaled = scaler.fit_transform(data.drop(columns=['date']))
+    
+    # Prepare the features and target
+    X = data_scaled[:, 1:]  # Exclude the date column
+    y = data_scaled[:, 0]   # Number of products sold
+    
+    return X, y, data['date']
+
+# Custom SMAPE loss function
+def smape_loss(y_true, y_pred):
+    return tf.reduce_mean(tf.abs(y_pred - y_true) / (tf.abs(y_true) + tf.abs(y_pred))) * 100
+
+# Build the LSTM model
+def build_lstm_model(input_shape):
+    model = Sequential()
+    model.add(LSTM(units=100, input_shape=input_shape))
+    model.add(Dropout(0.2))
+    model.add(Dense(units=1))
+    
+    model.compile(optimizer='RMSprop', loss=smape_loss)
+    return model
+
+# Train the LSTM model
+def train_lstm_model(X_train, y_train, epochs=100, batch_size=32):
+    model = build_lstm_model(input_shape=(1, X_train.shape[1]))
+    model.fit(X_train, y_train, epochs=epochs, batch_size=batch_size, verbose=1)
+    return model
+
+# SARIMAX model for comparison
+def build_sarimax_model(train_data):
+    model = SARIMAX(train_data, order=(1, 1, 1), seasonal_order=(1, 1, 1, 12))
+    results = model.fit(disp=False)
+    return results
+
+# Main function to execute the workflow
+def main():
+    # Load and preprocess the data
+    file_path = 'sales_data.csv'
+    X, y, dates = load_and_preprocess_data(file_path)
+    
+    # Split the data into training and testing sets
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle=False)
+    
+    # Reshape the data for LSTM input
+    X_train = X_train.reshape((X_train.shape[0], 1, X_train.shape[1]))
+    X_test = X_test.reshape((X_test.shape[0], 1, X_test.shape[1]))
+    
+    # Train the LSTM model
+    lstm_model = train_lstm_model(X_train, y_train)
+    
+    # Predict using LSTM model
+    lstm_predictions = lstm_model.predict(X_test)
+    
+    # Build and fit the SARIMAX model
+    sarimax_model = build_sarimax_model(y_train)
+    sarimax_predictions = sarimax_model.forecast(steps=len(y_test))
+    
+    # Compare the predictions
+    print("LSTM Predictions:", lstm_predictions)
+    print("SARIMAX Predictions:", sarimax_predictions)
+
+if __name__ == "__main__":
+    main()
+```
+------------------------------------- 30
+```python
+import pandas as pd
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Lambda, Bidirectional, LSTM, Dense
+from tensorflow.keras.optimizers import Adam
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.metrics import mean_absolute_error
+
+# Constants
+WINDOW_SIZE = 10
+
+# Load the dataset
+data = pd.read_csv('fruit_prices.csv')
+
+# Filter for 'Potato Red'
+data = data[data['Commodity'] == 'Potato Red']
+
+# Convert 'Date' to datetime and set as index
+data['Date'] = pd.to_datetime(data['Date'])
+data.set_index('Date', inplace=True)
+
+# Resample to fill missing dates and forward fill NaN values
+data = data.resample('D').ffill()
+
+# Extract the 'Average' price column
+prices = data['Average'].values
+
+# Normalize the prices
+scaler = MinMaxScaler(feature_range=(0, 1))
+prices_scaled = scaler.fit_transform(prices.reshape(-1, 1))
+
+# Create sequences
+def create_sequences(data, window_size):
+    X, y = [], []
+    for i in range(len(data) - window_size):
+        X.append(data[i:i + window_size])
+        y.append(data[i + window_size])
+    return np.array(X), np.array(y)
+
+X, y = create_sequences(prices_scaled, WINDOW_SIZE)
+
+# Split into training and testing sets
+split = int(0.8 * len(X))
+X_train, X_test = X[:split], X[split:]
+y_train, y_test = y[:split], y[split:]
+
+# Build the model
+model = Sequential([
+    Lambda(lambda x: tf.expand_dims(x, axis=-1), input_shape=[WINDOW_SIZE]),
+    Bidirectional(LSTM(32, return_sequences=True)),
+    Bidirectional(LSTM(32)),
+    Dense(1),
+    Lambda(lambda x: x * 100.0)
+])
+
+# Compile the model
+model.compile(optimizer=Adam(learning_rate=0.0001), loss='huber', metrics=['mae'])
+
+# Train the model
+model.fit(X_train, y_train, epochs=300, batch_size=32, validation_split=0.2)
+
+# Evaluate the model
+y_pred = model.predict(X_test)
+mae = mean_absolute_error(y_test, y_pred)
+print(f'Mean Absolute Error: {mae}')
+
+# Inverse transform the predictions and actual values
+y_test_inv = scaler.inverse_transform(y_test)
+y_pred_inv = scaler.inverse_transform(y_pred)
+
+# Print some predictions
+for i in range(10):
+    print(f'Actual: {y_test_inv[i][0]}, Predicted: {y_pred_inv[i][0]}')
+```
+------------------------------------- 31
+```python
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import GRU, Dense
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.regularizers import l2
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import mean_squared_error
+import matplotlib.pyplot as plt
+
+# Load the dataset
+train_data = np.load('train_data.npy')  # Shape: (600600, time_steps, features)
+train_labels = np.load('train_labels.npy')  # Shape: (600600, output_dim)
+test_data = np.load('test_data.npy')  # Shape: (test_samples, time_steps, features)
+test_labels = np.load('test_labels.npy')  # Shape: (test_samples, output_dim)
+
+# Normalize the data
+scaler_features = StandardScaler()
+scaler_labels = StandardScaler()
+
+train_data = scaler_features.fit_transform(train_data.reshape(-1, train_data.shape[-1])).reshape(train_data.shape)
+train_labels = scaler_labels.fit_transform(train_labels)
+
+test_data = scaler_features.transform(test_data.reshape(-1, test_data.shape[-1])).reshape(test_data.shape)
+test_labels = scaler_labels.transform(test_labels)
+
+# Define the generator model
+def build_generator(output_dim):
+    model = Sequential()
+    model.add(GRU(256, return_sequences=True, recurrent_dropout=0.02, recurrent_regularizer=l2(1e-3), input_shape=(None, train_data.shape[-1])))
+    model.add(GRU(128, recurrent_dropout=0.02, recurrent_regularizer=l2(1e-3)))
+    model.add(Dense(64, kernel_regularizer=l2(1e-3)))
+    model.add(Dense(32, kernel_regularizer=l2(1e-3)))
+    model.add(Dense(output_dim))
+    return model
+
+# Define the discriminator model
+def build_discriminator(output_dim):
+    model = Sequential()
+    model.add(GRU(256, return_sequences=True, recurrent_dropout=0.02, recurrent_regularizer=l2(1e-3), input_shape=(None, train_data.shape[-1] + output_dim)))
+    model.add(GRU(128, recurrent_dropout=0.02, recurrent_regularizer=l2(1e-3)))
+    model.add(Dense(64, kernel_regularizer=l2(1e-3)))
+    model.add(Dense(32, kernel_regularizer=l2(1e-3)))
+    model.add(Dense(1, activation='sigmoid'))
+    return model
+
+# Compile the models
+output_dim = train_labels.shape[-1]
+generator = build_generator(output_dim)
+discriminator = build_discriminator(output_dim)
+
+generator_optimizer = Adam(learning_rate=0.0001)
+discriminator_optimizer = Adam(learning_rate=0.0001)
+
+discriminator.compile(optimizer=discriminator_optimizer, loss='binary_crossentropy', metrics=['accuracy'])
+discriminator.trainable = False
+
+gan_input = tf.keras.Input(shape=(None, train_data.shape[-1]))
+gan_output = discriminator(tf.concat([gan_input, generator(gan_input)], axis=-1))
+gan = tf.keras.Model(gan_input, gan_output)
+gan.compile(optimizer=generator_optimizer, loss='binary_crossentropy')
+
+# Training the GAN
+epochs = 100
+batch_size = 128
+half_batch = batch_size // 2
+
+for epoch in range(epochs):
+    idx = np.random.randint(0, train_data.shape[0], half_batch)
+    real_samples = train_data[idx]
+    real_labels = train_labels[idx]
+    
+    noise = np.random.normal(0, 1, (half_batch, train_data.shape[1], train_data.shape[2]))
+    generated_samples = generator.predict(noise)
+    
+    X = np.concatenate([real_samples, noise])
+    y_dis = np.zeros(batch_size)
+    y_dis[:half_batch] = 0.9
+    
+    discriminator.trainable = True
+    d_loss = discriminator.train_on_batch(np.concatenate([real_samples, real_labels], axis=-1), y_dis[:half_batch])
+    d_loss += discriminator.train_on_batch(np.concatenate([noise, generated_samples], axis=-1), y_dis[half_batch:])
+    discriminator.trainable = False
+    
+    noise = np.random.normal(0, 1, (batch_size, train_data.shape[1], train_data.shape[2]))
+    y_gen = np.ones(batch_size)
+    
+    g_loss = gan.train_on_batch(noise, y_gen)
+    
+    print(f"Epoch {epoch+1}/{epochs}, Discriminator Loss: {d_loss[0]}, Generator Loss: {g_loss}")
+
+# Evaluate the model
+predicted_prices = generator.predict(test_data)
+predicted_prices = scaler_labels.inverse_transform(predicted_prices)
+test_labels = scaler_labels.inverse_transform(test_labels)
+
+rmse = np.sqrt(mean_squared_error(test_labels, predicted_prices))
+print(f"Root Mean Squared Error (RMSE): {rmse}")
+
+# Visualize the results
+plt.figure(figsize=(14, 7))
+plt.plot(test_labels, color='blue', label='Actual Stock Prices')
+plt.plot(predicted_prices, color='red', label='Predicted Stock Prices')
+plt.title('Stock Price Prediction')
+plt.xlabel('Time')
+plt.ylabel('Stock Price')
+plt.legend()
+plt.show()
+```
+------------------------------------- 32
+```python
+import numpy as np
+import pandas as pd
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Bidirectional, LSTM, Dropout, Dense
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.metrics import mean_squared_error
+
+# Load the dataset
+# Assuming the dataset is in a CSV file with columns 'Date' and 'Close'
+data = pd.read_csv('ETH-USD.csv', parse_dates=['Date'], index_col='Date')
+
+# Filter the data for a specific date range if needed
+# data = data['2015-01-01':'2022-12-31']
+
+# Normalize the closing prices
+scaler = MinMaxScaler(feature_range=(0, 1))
+scaled_data = scaler.fit_transform(data[['Close']])
+
+# Create datasets for training and testing
+def create_dataset(data, time_step=60):
+    X, Y = [], []
+    for i in range(len(data) - time_step - 1):
+        X.append(data[i:(i + time_step), 0])
+        Y.append(data[i + time_step, 0])
+    return np.array(X), np.array(Y)
+
+time_step = 60
+X, Y = create_dataset(scaled_data, time_step)
+
+# Reshape input to be [samples, time steps, features]
+X = X.reshape(X.shape[0], X.shape[1], 1)
+
+# Split the dataset into training and testing sets
+train_size = int(len(X) * 0.8)
+test_size = len(X) - train_size
+X_train, X_test = X[0:train_size], X[train_size:len(X)]
+Y_train, Y_test = Y[0:train_size], Y[train_size:len(Y)]
+
+# Build the model
+model = Sequential()
+model.add(Bidirectional(LSTM(50, return_sequences=True), input_shape=(time_step, 1)))
+model.add(Dropout(0.2))
+model.add(Bidirectional(LSTM(50, return_sequences=False)))
+model.add(Dropout(0.2))
+model.add(Dense(25))
+model.add(Dropout(0.2))
+model.add(Dense(1))
+
+# Compile the model
+model.compile(optimizer='adam', loss='mean_squared_error')
+
+# Train the model
+model.fit(X_train, Y_train, batch_size=32, epochs=40, validation_data=(X_test, Y_test))
+
+# Evaluate the model
+train_predict = model.predict(X_train)
+test_predict = model.predict(X_test)
+
+# Inverse transform the predictions to get actual prices
+train_predict = scaler.inverse_transform(train_predict)
+test_predict = scaler.inverse_transform(test_predict)
+
+# Calculate RMSE
+train_rmse = np.sqrt(mean_squared_error(Y_train, train_predict))
+test_rmse = np.sqrt(mean_squared_error(Y_test, test_predict))
+
+print(f'Train RMSE: {train_rmse}')
+print(f'Test RMSE: {test_rmse}')
+```
+------------------------------------- 33
+```python
+import tensorflow as tf
+from tensorflow.keras.preprocessing.text import Tokenizer
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Embedding, Bidirectional, LSTM, Dense, Dropout
+from sklearn.model_selection import train_test_split
+import numpy as np
+import json
+
+# Load and preprocess the dataset
+def load_data(file_path):
+    with open(file_path, 'r') as file:
+        data = json.load(file)
+    texts = []
+    labels = []
+    for entry in data:
+        texts.append(entry['text'])
+        labels.append(entry['stars'])
+    return texts, labels
+
+file_path = 'yelp_reviews.json'  # Replace with your actual file path
+texts, labels = load_data(file_path)
+
+# Tokenize the text
+tokenizer = Tokenizer()
+tokenizer.fit_on_texts(texts)
+sequences = tokenizer.texts_to_sequences(texts)
+
+# Pad sequences to ensure uniform input size
+max_len = 100  # Adjust based on your dataset
+padded_sequences = pad_sequences(sequences, maxlen=max_len, padding='post')
+
+# Convert labels to categorical
+labels = tf.keras.utils.to_categorical(labels, num_classes=5)
+
+# Split the dataset into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(padded_sequences, labels, test_size=0.2, random_state=42)
+
+# Build the model
+model = Sequential([
+    Embedding(input_dim=len(tokenizer.word_index) + 1, output_dim=128, input_length=max_len),
+    Bidirectional(LSTM(128, return_sequences=True)),
+    Bidirectional(LSTM(128, return_sequences=False)),
+    Dense(64, activation='relu'),
+    Dropout(0.25),
+    Dense(64, activation='relu'),
+    Dropout(0.25),
+    Dense(16, activation='relu'),
+    Dropout(0.25),
+    Dense(5, activation='softmax')
+])
+
+# Compile the model
+model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+
+# Train the model
+batch_size = 200
+epochs = 20
+model.fit(X_train, y_train, batch_size=batch_size, epochs=epochs, validation_data=(X_test, y_test))
+
+# Evaluate the model
+loss, accuracy = model.evaluate(X_test, y_test)
+print(f'Test Accuracy: {accuracy:.4f}')
+```
+------------------------------------- 34
+```python
+import tensorflow as tf
+from tensorflow.keras.layers import Input, Embedding, Bidirectional, LSTM, Conv1D, GlobalMaxPooling1D, Dense, Dropout
+from tensorflow.keras.models import Model
+from tensorflow.keras.preprocessing.text import Tokenizer
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+from sklearn.model_selection import train_test_split
+from imblearn.over_sampling import SMOTE
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
+
+# Load and preprocess the dataset
+def load_and_preprocess_data(file_path):
+    # Load the dataset
+    data = pd.read_csv(file_path)
+    
+    # Clean text data
+    data['essay'] = data['essay'].apply(lambda x: x.lower())
+    
+    # Handle missing values
+    data = data.dropna()
+    
+    # Split into training and test sets
+    train_data, test_data = train_test_split(data, test_size=0.2, random_state=42)
+    
+    return train_data, test_data
+
+# Vectorize text data
+def vectorize_text(train_data, test_data, max_features=10000, sequence_length=100):
+    tokenizer = Tokenizer(num_words=max_features)
+    tokenizer.fit_on_texts(train_data['essay'])
+    
+    X_train = tokenizer.texts_to_sequences(train_data['essay'])
+    X_test = tokenizer.texts_to_sequences(test_data['essay'])
+    
+    X_train = pad_sequences(X_train, maxlen=sequence_length)
+    X_test = pad_sequences(X_test, maxlen=sequence_length)
+    
+    y_train = train_data['label'].values
+    y_test = test_data['label'].values
+    
+    return X_train, X_test, y_train, y_test
+
+# Apply SMOTE for class balancing
+def apply_smote(X_train, y_train):
+    smote = SMOTE(random_state=42)
+    X_train, y_train = smote.fit_resample(X_train, y_train)
+    return X_train, y_train
+
+# Define the TransformerBlock
+class TransformerBlock(tf.keras.layers.Layer):
+    def __init__(self, embed_dim, num_heads, ff_dim, rate=0.1):
+        super(TransformerBlock, self).__init__()
+        self.att = tf.keras.layers.MultiHeadAttention(num_heads=num_heads, key_dim=embed_dim)
+        self.ffn = tf.keras.Sequential(
+            [tf.keras.layers.Dense(ff_dim, activation="relu"), tf.keras.layers.Dense(embed_dim),]
+        )
+        self.layernorm1 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
+        self.layernorm2 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
+        self.dropout1 = tf.keras.layers.Dropout(rate)
+        self.dropout2 = tf.keras.layers.Dropout(rate)
+
+    def call(self, inputs, training):
+        attn_output = self.att(inputs, inputs)
+        attn_output = self.dropout1(attn_output, training=training)
+        out1 = self.layernorm1(inputs + attn_output)
+        ffn_output = self.ffn(out1)
+        ffn_output = self.dropout2(ffn_output, training=training)
+        return self.layernorm2(out1 + ffn_output)
+
+# Build the model
+def build_model(max_features, sequence_length, embedding_dim=128, embed_dim=64, num_heads=2, ff_dim=32):
+    inputs = Input(shape=(sequence_length,))
+    x = Embedding(max_features, embedding_dim)(inputs)
+    x = Bidirectional(LSTM(32, return_sequences=True))(x)
+    x = TransformerBlock(embed_dim, num_heads, ff_dim)(x)
+    x = Conv1D(128, 7, padding='valid', activation='relu', strides=3)(x)
+    x = GlobalMaxPooling1D()(x)
+    x = Dense(128, activation='relu')(x)
+    x = Dropout(0.5)(x)
+    outputs = Dense(1, activation='sigmoid')(x)
+    
+    model = Model(inputs, outputs)
+    model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+    return model
+
+# Train the model
+def train_model(model, X_train, y_train, batch_size=32, epochs=10):
+    history = model.fit(X_train, y_train, batch_size=batch_size, epochs=epochs, validation_split=0.2)
+    return history
+
+# Evaluate the model
+def evaluate_model(model, X_test, y_test):
+    y_pred = model.predict(X_test)
+    y_pred = (y_pred > 0.5).astype(int)
+    
+    accuracy = accuracy_score(y_test, y_pred)
+    precision = precision_score(y_test, y_pred)
+    recall = recall_score(y_test, y_pred)
+    f1 = f1_score(y_test, y_pred)
+    conf_matrix = confusion_matrix(y_test, y_pred)
+    
+    print(f"Accuracy: {accuracy}")
+    print(f"Precision: {precision}")
+    print(f"Recall: {recall}")
+    print(f"F1 Score: {f1}")
+    print(f"Confusion Matrix:\n{conf_matrix}")
+    
+    return accuracy, precision, recall, f1, conf_matrix
+
+# Visualize the training history
+def visualize_training_history(history):
+    plt.figure(figsize=(12, 4))
+    plt.subplot(1, 2, 1)
+    plt.plot(history.history['accuracy'], label='Train Accuracy')
+    plt.plot(history.history['val_accuracy'], label='Validation Accuracy')
+    plt.legend()
+    plt.title('Accuracy')
+    
+    plt.subplot(1, 2, 2)
+    plt.plot(history.history['loss'], label='Train Loss')
+    plt.plot(history.history['val_loss'], label='Validation Loss')
+    plt.legend()
+    plt.title('Loss')
+    
+    plt.show()
+
+# Main function
+def main():
+    file_path = 'essays_dataset.csv'
+    train_data, test_data = load_and_preprocess_data(file_path)
+    X_train, X_test, y_train, y_test = vectorize_text(train_data, test_data)
+    X_train, y_train = apply_smote(X_train, y_train)
+    
+    model = build_model(max_features=10000, sequence_length=100)
+    history = train_model(model, X_train, y_train)
+    visualize_training_history(history)
+    
+    evaluate_model(model, X_test, y_test)
+
+if __name__ == "__main__":
+    main()
+```
+------------------------------------- 35
+```python
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Input, Embedding, LSTM, Dense, LayerNormalization, MultiHeadAttention
+from tensorflow.keras.preprocessing.text import Tokenizer
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+from sklearn.preprocessing import LabelEncoder
+import numpy as np
+import pandas as pd
+
+# Load data
+train_df = pd.read_csv('train.csv')
+val_df = pd.read_csv('val.csv')
+
+# Preprocess text
+tokenizer = Tokenizer(num_words=16000, oov_token="<OOV>")
+tokenizer.fit_on_texts(train_df['headlines'])
+
+train_sequences = tokenizer.texts_to_sequences(train_df['headlines'])
+val_sequences = tokenizer.texts_to_sequences(val_df['headlines'])
+
+max_length = 64
+train_padded = pad_sequences(train_sequences, maxlen=max_length, padding='post', truncating='post')
+val_padded = pad_sequences(val_sequences, maxlen=max_length, padding='post', truncating='post')
+
+# Encode labels
+label_encoder = LabelEncoder()
+train_labels = label_encoder.fit_transform(train_df['labels'])
+val_labels = label_encoder.transform(val_df['labels'])
+
+# Define TransformerEncoderBlock
+class TransformerEncoderBlock(tf.keras.layers.Layer):
+    def __init__(self, num_attention_heads, inner_dim, inner_activation, **kwargs):
+        super(TransformerEncoderBlock, self).__init__(**kwargs)
+        self.attention = MultiHeadAttention(num_heads=num_attention_heads, key_dim=inner_dim)
+        self.norm1 = LayerNormalization(epsilon=1e-6)
+        self.dense1 = Dense(inner_dim, activation=inner_activation)
+        self.dense2 = Dense(inner_dim)
+        self.norm2 = LayerNormalization(epsilon=1e-6)
+
+    def call(self, inputs):
+        attn_output = self.attention(inputs, inputs)
+        out1 = self.norm1(inputs + attn_output)
+        ffn_output = self.dense2(self.dense1(out1))
+        return self.norm2(out1 + ffn_output)
+
+# Build model
+model = Sequential([
+    Input(shape=(max_length,)),
+    Embedding(16000, 500, trainable=True),
+    TransformerEncoderBlock(num_attention_heads=500, inner_dim=250, inner_activation='relu'),
+    LSTM(500, return_sequences=False),
+    Dense(3, activation='softmax')
+])
+
+# Compile model
+model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+
+# Train model
+model.fit(train_padded, train_labels, validation_data=(val_padded, val_labels), epochs=100)
+```
+------------------------------------- 36
+```python
+import pandas as pd
+import tensorflow as tf
+from transformers import BertTokenizer, TFBertForSequenceClassification
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.losses import BinaryCrossentropy
+from tensorflow.keras.metrics import BinaryAccuracy
+
+# Load the dataset
+df = pd.read_csv('movie_reviews.csv')
+
+# Drop unnecessary columns if any
+df = df.drop(columns=['Unnamed: 0', 'id', 'review_date', 'reviewer_id'], errors='ignore')
+
+# Convert categorical attributes to numerical
+label_encoder = LabelEncoder()
+df['sentiment'] = label_encoder.fit_transform(df['sentiment'])
+
+# Split the data into training and test sets
+train_texts, test_texts, train_labels, test_labels = train_test_split(df['review'], df['sentiment'], test_size=0.2, random_state=42)
+
+# Load the BERT tokenizer
+tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+
+# Tokenize the input texts
+train_encodings = tokenizer(train_texts.tolist(), truncation=True, padding=True, max_length=128)
+test_encodings = tokenizer(test_texts.tolist(), truncation=True, padding=True, max_length=128)
+
+# Convert the tokenized inputs to TensorFlow datasets
+train_dataset = tf.data.Dataset.from_tensor_slices((
+    dict(train_encodings),
+    train_labels
+))
+test_dataset = tf.data.Dataset.from_tensor_slices((
+    dict(test_encodings),
+    test_labels
+))
+
+# Load the pre-trained BERT model for sequence classification
+model = TFBertForSequenceClassification.from_pretrained('bert-base-uncased', num_labels=1)
+
+# Compile the model
+optimizer = Adam(learning_rate=2e-5)
+loss = BinaryCrossentropy(from_logits=True)
+metric = BinaryAccuracy('accuracy')
+
+model.compile(optimizer=optimizer, loss=loss, metrics=[metric])
+
+# Train the model
+model.fit(train_dataset.shuffle(1000).batch(32), epochs=4, batch_size=32)
+
+# Evaluate the model
+results = model.evaluate(test_dataset.batch(32))
+print(f'Test Loss: {results[0]}, Test Accuracy: {results[1]}')
+```
+------------------------------------- 37
+```python
+import tensorflow as tf
+from tensorflow.keras.models import Model
+from tensorflow.keras.layers import Input, Embedding, Conv1D, Bidirectional, GRU, MultiHeadAttention, LayerNormalization, Dense, Dropout, Concatenate
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.losses import CategoricalCrossentropy
+from tensorflow.keras.metrics import CategoricalAccuracy, Precision, Recall
+from sklearn.model_selection import train_test_split
+from tensorflow.keras.utils import to_categorical
+import numpy as np
+
+# Assuming X_char, X_sym, y are your datasets
+# X_char: Character indices of shape (num_samples, 1000)
+# X_sym: Symbol indices of shape (num_samples, 1000)
+# y: Labels of shape (num_samples,)
+
+# Preprocessing
+y = to_categorical(y, num_classes=2)  # Convert labels to one-hot encoded format
+X_char_train, X_char_test, X_sym_train, X_sym_test, y_train, y_test = train_test_split(X_char, X_sym, y, test_size=0.2, random_state=42)
+
+# Model Architecture
+char_input = Input(shape=(1000,), name='char_input')
+sym_input = Input(shape=(1000,), name='sym_input')
+
+char_embedding = Embedding(input_dim=1000, output_dim=128)(char_input)
+sym_embedding = Embedding(input_dim=1000, output_dim=128)(sym_input)
+
+char_conv = Conv1D(filters=64, kernel_size=3, activation='relu')(char_embedding)
+sym_conv = Conv1D(filters=64, kernel_size=3, activation='relu')(sym_embedding)
+
+char_bi_gru = Bidirectional(GRU(64, return_sequences=True))(char_conv)
+sym_bi_gru = Bidirectional(GRU(64, return_sequences=True))(sym_conv)
+
+char_attention = MultiHeadAttention(num_heads=4, key_dim=64)(char_bi_gru, char_bi_gru)
+sym_attention = MultiHeadAttention(num_heads=4, key_dim=64)(sym_bi_gru, sym_bi_gru)
+
+char_norm = LayerNormalization()(char_attention)
+sym_norm = LayerNormalization()(sym_attention)
+
+char_pool = tf.reduce_mean(char_norm, axis=1)
+sym_pool = tf.reduce_mean(sym_norm, axis=1)
+
+concat = Concatenate()([char_pool, sym_pool])
+
+dense = Dense(128, activation='relu')(concat)
+dropout = Dropout(0.5)(dense)
+output = Dense(2, activation='softmax')(dropout)
+
+model = Model(inputs=[char_input, sym_input], outputs=output)
+
+# Compile the model
+model.compile(optimizer=Adam(), loss=CategoricalCrossentropy(), metrics=[CategoricalAccuracy(), Precision(), Recall()])
+
+# Train the model
+model.fit([X_char_train, X_sym_train], y_train, batch_size=64, epochs=10, validation_data=([X_char_test, X_sym_test], y_test))
+
+# Evaluate the model
+evaluation = model.evaluate([X_char_test, X_sym_test], y_test)
+print(f"Accuracy: {evaluation[1]}, Precision: {evaluation[2]}, Recall: {evaluation[3]}")
+```
+------------------------------------- 38
+```python
+import tensorflow as tf
+from tensorflow.keras.layers import Input, Embedding, LSTM, Dense, TimeDistributed, Concatenate
+from tensorflow.keras.models import Model
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.preprocessing.text import Tokenizer
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+import numpy as np
+
+# Hyperparameters
+max_text_len = 100
+max_summary_len = 15
+embedding_dim = 128
+lstm_units = 256
+batch_size = 128
+epochs = 100
+learning_rate = 0.1
+
+# Sample data (replace with actual dataset)
+texts = ["This is a sample news article.", "Another example of a news article."]
+summaries = ["Sample summary.", "Example summary."]
+
+# Tokenization and padding
+tokenizer = Tokenizer()
+tokenizer.fit_on_texts(texts + summaries)
+text_sequences = tokenizer.texts_to_sequences(texts)
+summary_sequences = tokenizer.texts_to_sequences(summaries)
+
+text_data = pad_sequences(text_sequences, maxlen=max_text_len, padding='post')
+summary_data = pad_sequences(summary_sequences, maxlen=max_summary_len, padding='post')
+
+# Model Architecture
+# Encoder
+text_input = Input(shape=(max_text_len,))
+text_embedding = Embedding(input_dim=len(tokenizer.word_index) + 1, output_dim=embedding_dim)(text_input)
+encoder_lstm1 = LSTM(lstm_units, return_sequences=True)(text_embedding)
+encoder_lstm2 = LSTM(lstm_units, return_sequences=True)(encoder_lstm1)
+encoder_lstm3 = LSTM(lstm_units, return_sequences=True)(encoder_lstm2)
+
+# Decoder
+summary_input = Input(shape=(max_summary_len,))
+summary_embedding = Embedding(input_dim=len(tokenizer.word_index) + 1, output_dim=embedding_dim)(summary_input)
+decoder_lstm = LSTM(lstm_units, return_sequences=True)(summary_embedding, initial_state=[encoder_lstm3[:, -1, :], encoder_lstm3[:, -1, :]])
+
+# Attention Mechanism (simplified)
+attention = tf.keras.layers.Attention()([decoder_lstm, encoder_lstm3])
+decoder_combined = Concatenate()([decoder_lstm, attention])
+
+# Output layer
+output = TimeDistributed(Dense(len(tokenizer.word_index) + 1, activation='softmax'))(decoder_combined)
+
+# Model
+model = Model([text_input, summary_input], output)
+model.compile(optimizer=Adam(learning_rate=learning_rate), loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+
+# Training
+model.fit([text_data, summary_data[:, :-1]], summary_data[:, 1:], batch_size=batch_size, epochs=epochs)
+```
+------------------------------------- 39
+```python
+import pandas as pd
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras.layers import Input, LSTM, Dense
+from tensorflow.keras.models import Model
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.preprocessing.text import Tokenizer
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+from sklearn.model_selection import train_test_split
+import re
+import nltk
+from nltk.corpus import stopwords
+from nltk.stem import WordNetLemmatizer
+
+# Download necessary NLTK data
+nltk.download('stopwords')
+nltk.download('wordnet')
+
+# Load dataset
+df = pd.read_csv('arabic_text_summaries.csv')
+
+# Preprocessing functions
+def clean_text(text):
+    text = re.sub(r'http\S+', '', text)  # Remove links
+    text = re.sub(r'[^\w\s]', '', text)  # Remove punctuation
+    text = text.lower()  # Convert to lowercase
+    return text
+
+def remove_stopwords(text):
+    stop_words = set(stopwords.words('arabic'))
+    text = ' '.join([word for word in text.split() if word not in stop_words])
+    return text
+
+def lemmatize_text(text):
+    lemmatizer = WordNetLemmatizer()
+    text = ' '.join([lemmatizer.lemmatize(word) for word in text.split()])
+    return text
+
+# Apply preprocessing
+df['cleaned_text'] = df['text'].apply(clean_text)
+df['cleaned_text'] = df['cleaned_text'].apply(remove_stopwords)
+df['cleaned_text'] = df['cleaned_text'].apply(lemmatize_text)
+
+# Tokenization
+tokenizer = Tokenizer()
+tokenizer.fit_on_texts(df['cleaned_text'])
+X = tokenizer.texts_to_sequences(df['cleaned_text'])
+X = pad_sequences(X, padding='post')
+
+# Prepare target summaries
+tokenizer_summary = Tokenizer()
+tokenizer_summary.fit_on_texts(df['summary'])
+y = tokenizer_summary.texts_to_sequences(df['summary'])
+y = pad_sequences(y, padding='post')
+
+# Split data
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Model architecture
+latent_dim = 256
+
+# Encoder
+encoder_inputs = Input(shape=(None,))
+enc_emb = tf.keras.layers.Embedding(input_dim=len(tokenizer.word_index) + 1, output_dim=latent_dim)(encoder_inputs)
+encoder_lstm = LSTM(latent_dim, return_state=True)
+encoder_outputs, state_h, state_c = encoder_lstm(enc_emb)
+encoder_states = [state_h, state_c]
+
+# Decoder
+decoder_inputs = Input(shape=(None,))
+dec_emb_layer = tf.keras.layers.Embedding(input_dim=len(tokenizer_summary.word_index) + 1, output_dim=latent_dim)
+dec_emb = dec_emb_layer(decoder_inputs)
+decoder_lstm = LSTM(latent_dim, return_sequences=True, return_state=True)
+decoder_outputs, _, _ = decoder_lstm(dec_emb, initial_state=encoder_states)
+decoder_dense = Dense(len(tokenizer_summary.word_index) + 1, activation='softmax')
+decoder_outputs = decoder_dense(decoder_outputs)
+
+# Model
+model = Model([encoder_inputs, decoder_inputs], decoder_outputs)
+
+# Compile model
+model.compile(optimizer=Adam(), loss='sparse_categorical_crossentropy')
+
+# Train model
+model.fit([X_train, y_train[:, :-1]], y_train.reshape(y_train.shape[0], y_train.shape[1], 1)[:, 1:],
+          batch_size=2, epochs=1, validation_data=([X_test, y_test[:, :-1]], y_test.reshape(y_test.shape[0], y_test.shape[1], 1)[:, 1:]))
+```
+------------------------------------- 40
+```python
+import tensorflow as tf
+from tensorflow.keras.models import Model
+from tensorflow.keras.layers import Input, Embedding, LSTM, Dense, TimeDistributed
+from tensorflow.keras.preprocessing.text import Tokenizer
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+import numpy as np
+import pandas as pd
+
+# Hyperparameters
+max_text_len = 100
+max_summary_len = 15
+embedding_dim = 128
+latent_dim = 256
+batch_size = 128
+epochs = 50
+learning_rate = 0.001
+
+# Load and preprocess data
+def load_data(file1, file2):
+    df1 = pd.read_csv(file1)
+    df2 = pd.read_csv(file2)
+    df = pd.concat([df1, df2], ignore_index=True)
+    return df[['text', 'summary']]
+
+def preprocess_data(df):
+    tokenizer_text = Tokenizer()
+    tokenizer_text.fit_on_texts(df['text'])
+    tokenizer_summary = Tokenizer()
+    tokenizer_summary.fit_on_texts(df['summary'])
+    
+    x_voc = len(tokenizer_text.word_index) + 1
+    y_voc = len(tokenizer_summary.word_index) + 1
+    
+    x_sequences = tokenizer_text.texts_to_sequences(df['text'])
+    y_sequences = tokenizer_summary.texts_to_sequences(df['summary'])
+    
+    x_padded = pad_sequences(x_sequences, maxlen=max_text_len, padding='post')
+    y_padded = pad_sequences(y_sequences, maxlen=max_summary_len, padding='post')
+    
+    return x_padded, y_padded, x_voc, y_voc, tokenizer_summary
+
+# Load and preprocess the dataset
+file1 = 'file1.csv'
+file2 = 'file2.csv'
+df = load_data(file1, file2)
+x_padded, y_padded, x_voc, y_voc, tokenizer_summary = preprocess_data(df)
+
+# Define the model
+encoder_inputs = Input(shape=(max_text_len,))
+encoder_embedding = Embedding(x_voc, embedding_dim, trainable=True)(encoder_inputs)
+encoder_lstm1 = LSTM(latent_dim, return_sequences=True, return_state=True, dropout=0.2, recurrent_dropout=0.2)
+encoder_lstm2 = LSTM(latent_dim, return_sequences=True, return_state=True, dropout=0.2, recurrent_dropout=0.2)
+encoder_lstm3 = LSTM(latent_dim, return_sequences=True, return_state=True, dropout=0.2, recurrent_dropout=0.2)
+
+encoder_outputs, state_h, state_c = encoder_lstm1(encoder_embedding)
+encoder_outputs, state_h, state_c = encoder_lstm2(encoder_outputs)
+encoder_outputs, state_h, state_c = encoder_lstm3(encoder_outputs)
+
+decoder_inputs = Input(shape=(None,))
+decoder_embedding = Embedding(y_voc, embedding_dim, trainable=True)(decoder_inputs)
+decoder_lstm = LSTM(latent_dim, return_sequences=True, return_state=True, dropout=0.2, recurrent_dropout=0.2)
+decoder_outputs, _, _ = decoder_lstm(decoder_embedding, initial_state=[state_h, state_c])
+decoder_dense = TimeDistributed(Dense(y_voc, activation='softmax'))
+decoder_outputs = decoder_dense(decoder_outputs)
+
+model = Model([encoder_inputs, decoder_inputs], decoder_outputs)
+
+# Compile the model
+model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate), 
+              loss='sparse_categorical_crossentropy', 
+              metrics=['accuracy'])
+
+# Train the model
+model.fit([x_padded, y_padded[:, :-1]], y_padded[:, 1:], batch_size=batch_size, epochs=epochs, validation_split=0.2)
+
+# Inference setup
+encoder_model = Model(encoder_inputs, [state_h, state_c])
+
+decoder_state_input_h = Input(shape=(latent_dim,))
+decoder_state_input_c = Input(shape=(latent_dim,))
+decoder_states_inputs = [decoder_state_input_h, decoder_state_input_c]
+
+decoder_outputs, state_h, state_c = decoder_lstm(decoder_embedding, initial_state=decoder_states_inputs)
+decoder_states = [state_h, state_c]
+decoder_outputs = decoder_dense(decoder_outputs)
+
+decoder_model = Model([decoder_inputs] + decoder_states_inputs, [decoder_outputs] + decoder_states)
+
+# Function to decode sequence
+def decode_sequence(input_seq):
+    states_value = encoder_model.predict(input_seq)
+    target_seq = np.zeros((1, 1))
+    target_seq[0, 0] = tokenizer_summary.word_index['start']
+    
+    stop_condition = False
+    decoded_sentence = ''
+    while not stop_condition:
+        output_tokens, h, c = decoder_model.predict([target_seq] + states_value)
+        sampled_token_index = np.argmax(output_tokens[0, -1, :])
+        sampled_word = tokenizer_summary.index_word[sampled_token_index]
+        
+        if sampled_word == 'end' or len(decoded_sentence.split()) >= max_summary_len:
+            stop_condition = True
+        else:
+            decoded_sentence += sampled_word + ' '
+        
+        target_seq = np.zeros((1, 1))
+        target_seq[0, 0] = sampled_token_index
+        states_value = [h, c]
+    
+    return decoded_sentence.strip()
+
+# Example usage
+input_seq = x_padded[0:1]
+summary = decode_sequence(input_seq)
+print("Generated Summary:", summary)
+```
+------------------------------------- 41
+```python
+import tensorflow as tf
+from tensorflow.keras.models import Model
+from tensorflow.keras.layers import Input, Embedding, LSTM, GRU, Dense, Bidirectional, Attention, Concatenate
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.losses import SparseCategoricalCrossentropy
+from tensorflow.keras.metrics import MeanSquaredError
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+from tensorflow.keras.preprocessing.text import Tokenizer
+import numpy as np
+
+# Hyperparameters
+vocab_size = 10000
+embed_dim = 256
+hidden_dim = 512
+dropout = 0.2
+batch_size = 32
+epochs = 100
+learning_rate = 0.001
+
+# Sample data (replace with actual dataset)
+english_sentences = ["hello world", "good morning"]
+french_sentences = ["bonjour le monde", "bonjour matin"]
+
+# Tokenization
+tokenizer_en = Tokenizer(num_words=vocab_size, oov_token="<OOV>")
+tokenizer_en.fit_on_texts(english_sentences)
+tokenizer_fr = Tokenizer(num_words=vocab_size, oov_token="<OOV>")
+tokenizer_fr.fit_on_texts(french_sentences)
+
+# Convert text to sequences
+input_sequences = tokenizer_fr.texts_to_sequences(french_sentences)
+output_sequences = tokenizer_en.texts_to_sequences(english_sentences)
+
+# Pad sequences
+max_length = max(len(seq) for seq in input_sequences + output_sequences)
+input_sequences = pad_sequences(input_sequences, maxlen=max_length, padding='post')
+output_sequences = pad_sequences(output_sequences, maxlen=max_length, padding='post')
+
+# Add <sos> and <eos> tokens
+output_sequences = np.array([[tokenizer_en.word_index['<sos>']] + seq + [tokenizer_en.word_index['<eos>']] for seq in output_sequences])
+
+# Model
+encoder_inputs = Input(shape=(None,))
+encoder_embedding = Embedding(vocab_size, embed_dim, mask_zero=True)(encoder_inputs)
+encoder_lstm, state_h, state_c = Bidirectional(LSTM(hidden_dim // 2, return_sequences=True, return_state=True))(encoder_embedding)
+encoder_states = [state_h, state_c]
+
+decoder_inputs = Input(shape=(None,))
+decoder_embedding = Embedding(vocab_size, embed_dim, mask_zero=True)(decoder_inputs)
+decoder_lstm = LSTM(hidden_dim, return_sequences=True, return_state=True)
+decoder_outputs, _, _ = decoder_lstm(decoder_embedding, initial_state=encoder_states)
+
+# Attention mechanism
+attention = Attention()([decoder_outputs, encoder_lstm])
+decoder_concat = Concatenate(axis=-1)([decoder_outputs, attention])
+
+decoder_gru = Bidirectional(GRU(hidden_dim, dropout=dropout, return_sequences=True, kernel_initializer='orthogonal'))(decoder_concat)
+decoder_dense = Dense(vocab_size, activation='softmax')(decoder_gru)
+
+model = Model([encoder_inputs, decoder_inputs], decoder_dense)
+
+# Compile the model
+model.compile(optimizer=Adam(learning_rate=learning_rate),
+              loss=SparseCategoricalCrossentropy(from_logits=False),
+              metrics=[MeanSquaredError()])
+
+# Train the model
+model.fit([input_sequences, output_sequences[:, :-1]], output_sequences[:, 1:], batch_size=batch_size, epochs=epochs)
+```
+------------------------------------- 42
+```python
+import tensorflow as tf
+from tensorflow.keras.models import Model
+from tensorflow.keras.layers import Input, Embedding, LSTM, Dense
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+from tensorflow.keras.preprocessing.text import Tokenizer
+from tensorflow.keras.optimizers import RMSprop
+import numpy as np
+
+# Sample data (replace with actual dataset loading)
+# Assuming we have two lists: english_sentences and turkish_sentences
+english_sentences = ["Hello world", "How are you"]
+turkish_sentences = ["Merhaba dünya", "Nasılsın"]
+
+# Tokenization
+num_encoder_words = 10000  # Example value, adjust based on vocabulary size
+num_decoder_words = 10000  # Example value, adjust based on vocabulary size
+
+encoder_tokenizer = Tokenizer(num_words=num_encoder_words, oov_token="<OOV>")
+encoder_tokenizer.fit_on_texts(english_sentences)
+encoder_input_data = encoder_tokenizer.texts_to_sequences(english_sentences)
+
+decoder_tokenizer = Tokenizer(num_words=num_decoder_words, oov_token="<OOV>")
+decoder_tokenizer.fit_on_texts(turkish_sentences)
+decoder_input_data = decoder_tokenizer.texts_to_sequences(turkish_sentences)
+
+# Padding
+max_encoder_seq_length = max(len(seq) for seq in encoder_input_data)
+max_decoder_seq_length = max(len(seq) for seq in decoder_input_data)
+
+encoder_input_data = pad_sequences(encoder_input_data, maxlen=max_encoder_seq_length, padding='post')
+decoder_input_data = pad_sequences(decoder_input_data, maxlen=max_decoder_seq_length, padding='post')
+
+# Adding start and end tokens to decoder input
+decoder_target_data = np.zeros_like(decoder_input_data)
+for i, seq in enumerate(decoder_input_data):
+    decoder_target_data[i, :-1] = seq[1:]
+
+# Model Architecture
+encoder_inputs = Input(shape=(None,), name='encoder_input')
+encoder_embedding = Embedding(input_dim=num_encoder_words, output_dim=100, name='encoder_embedding')(encoder_inputs)
+encoder_lstm1 = LSTM(256, dropout=0.2, return_sequences=True, name='encoder_lstm1')(encoder_embedding)
+encoder_lstm2 = LSTM(256, dropout=0.2, return_sequences=True, name='encoder_lstm2')(encoder_lstm1)
+encoder_lstm3 = LSTM(256, dropout=0.2, return_sequences=False, name='encoder_lstm3')(encoder_lstm2)
+
+decoder_inputs = Input(shape=(None,), name='decoder_input')
+decoder_embedding = Embedding(input_dim=num_decoder_words, output_dim=100, name='decoder_embedding')(decoder_inputs)
+decoder_lstm1 = LSTM(256, dropout=0.2, return_sequences=True, name='decoder_lstm1')(decoder_embedding, initial_state=[encoder_lstm3, encoder_lstm3])
+decoder_lstm2 = LSTM(256, dropout=0.2, return_sequences=True, name='decoder_lstm2')(decoder_lstm1)
+decoder_lstm3 = LSTM(256, dropout=0.2, return_sequences=True, name='decoder_lstm3')(decoder_lstm2)
+decoder_outputs = Dense(num_decoder_words, activation='linear', name='decoder_output')(decoder_lstm3)
+
+model = Model([encoder_inputs, decoder_inputs], decoder_outputs)
+
+# Compile the model
+model.compile(optimizer=RMSprop(learning_rate=1), loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+
+# Train the model
+model.fit([encoder_input_data, decoder_input_data], decoder_target_data, batch_size=512, epochs=20, validation_split=0.2)
+
+# Save the model
+model.save('translation_model.h5')
+```
+------------------------------------- 43
+```python
+import tensorflow as tf
+from tensorflow.keras.models import Model
+from tensorflow.keras.layers import Input, Embedding, LSTM, Dense, Bidirectional, TimeDistributed
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.losses import SparseCategoricalCrossentropy
+import numpy as np
+
+# Hyperparameters
+SRC_VOCAB_SIZE = 10000  # Example size for English vocabulary
+TRG_VOCAB_SIZE = 10000  # Example size for French vocabulary
+EMBEDDING_DIM = 256
+HIDDEN_DIM = 512
+BATCH_SIZE = 128
+EPOCHS = 50
+MAX_LEN = 20
+
+# Sample data (replace with actual dataset loading and preprocessing)
+# Assuming src_data and trg_data are preprocessed and padded to MAX_LEN
+src_data = np.random.randint(1, SRC_VOCAB_SIZE, size=(500000, MAX_LEN))
+trg_data = np.random.randint(1, TRG_VOCAB_SIZE, size=(500000, MAX_LEN))
+
+# Model Definition
+class Attention(tf.keras.layers.Layer):
+    def __init__(self, **kwargs):
+        super(Attention, self).__init__(**kwargs)
+
+    def call(self, inputs):
+        encoder_outputs, decoder_outputs = inputs
+        attention_scores = tf.matmul(decoder_outputs, encoder_outputs, transpose_b=True)
+        attention_weights = tf.nn.softmax(attention_scores, axis=-1)
+        context_vector = tf.matmul(attention_weights, encoder_outputs)
+        return context_vector
+
+# Encoder
+encoder_inputs = Input(shape=(MAX_LEN,))
+encoder_embedding = Embedding(SRC_VOCAB_SIZE, EMBEDDING_DIM)(encoder_inputs)
+encoder_lstm = Bidirectional(LSTM(HIDDEN_DIM // 2, return_sequences=True, return_state=True))
+encoder_outputs, forward_h, forward_c, backward_h, backward_c = encoder_lstm(encoder_embedding)
+state_h = tf.keras.layers.Concatenate()([forward_h, backward_h])
+state_c = tf.keras.layers.Concatenate()([forward_c, backward_c])
+encoder_states = [state_h, state_c]
+
+# Decoder
+decoder_inputs = Input(shape=(MAX_LEN,))
+decoder_embedding = Embedding(TRG_VOCAB_SIZE, EMBEDDING_DIM)(decoder_inputs)
+decoder_lstm = LSTM(HIDDEN_DIM, return_sequences=True, return_state=True)
+decoder_outputs, _, _ = decoder_lstm(decoder_embedding, initial_state=encoder_states)
+attention = Attention()
+context_vector = attention([encoder_outputs, decoder_outputs])
+decoder_combined_context = tf.concat([context_vector, decoder_outputs], axis=-1)
+output = TimeDistributed(Dense(TRG_VOCAB_SIZE, activation='softmax'))(decoder_combined_context)
+
+# Model
+model = Model([encoder_inputs, decoder_inputs], output)
+model.compile(optimizer=Adam(learning_rate=0.001), loss=SparseCategoricalCrossentropy(from_logits=False), metrics=['accuracy'])
+
+# Training
+model.fit([src_data, trg_data[:, :-1]], trg_data[:, 1:], batch_size=BATCH_SIZE, epochs=EPOCHS)
+
+# Visualizing Attention Scores
+def visualize_attention(src_sentence, trg_sentence):
+    src_seq = np.array([src_sentence])
+    trg_seq = np.array([trg_sentence])
+    
+    encoder_model = Model(encoder_inputs, [encoder_outputs, encoder_states])
+    
+    decoder_state_input_h = Input(shape=(HIDDEN_DIM,))
+    decoder_state_input_c = Input(shape=(HIDDEN_DIM,))
+    decoder_states_inputs = [decoder_state_input_h, decoder_state_input_c]
+    
+    decoder_outputs, state_h, state_c = decoder_lstm(decoder_embedding, initial_state=decoder_states_inputs)
+    decoder_states = [state_h, state_c]
+    context_vector = attention([encoder_outputs, decoder_outputs])
+    decoder_combined_context = tf.concat([context_vector, decoder_outputs], axis=-1)
+    decoder_outputs = TimeDistributed(Dense(TRG_VOCAB_SIZE, activation='softmax'))(decoder_combined_context)
+    
+    decoder_model = Model([decoder_inputs] + decoder_states_inputs, [decoder_outputs] + decoder_states)
+    
+    encoder_outputs, encoder_states = encoder_model.predict(src_seq)
+    decoder_states = encoder_states
+    attention_scores = []
+    
+    for i in range(len(trg_sentence)):
+        decoder_output, decoder_states = decoder_model.predict([trg_seq[:, i:i+1]] + decoder_states)
+        context_vector = attention([encoder_outputs, decoder_output])
+        attention_scores.append(context_vector)
+    
+    attention_scores = np.array(attention_scores)
+    return attention_scores
+
+# Example usage of visualize_attention
+src_sentence = [1, 2, 3, 4, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]  # Example English sentence
+trg_sentence = [1, 2, 3, 4, 5, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]  # Example French sentence
+attention_scores = visualize_attention(src_sentence, trg_sentence)
+print(attention_scores)
+```
+------------------------------------- 44
+```python
+import tensorflow as tf
+from tensorflow.keras.layers import Layer, Embedding, Dense, LayerNormalization, Dropout
+from tensorflow.keras.models import Model
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.preprocessing.text import Tokenizer
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+from tensorflow.keras.utils import to_categorical
+from tensorflow.keras.callbacks import EarlyStopping
+import numpy as np
+import pandas as pd
+import os
+
+# Hyperparameters
+BATCH_SIZE = 128
+EPOCHS = 30
+LATENT_DIM = 256
+NUM_HEADS = 8
+FF_DIM = 512
+MAX_SEQUENCE_LENGTH = 50
+
+# Custom Learning Rate Schedule
+class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
+    def __init__(self, d_model, warmup_steps=4000):
+        super(CustomSchedule, self).__init__()
+        self.d_model = d_model
+        self.d_model = tf.cast(self.d_model, tf.float32)
+        self.warmup_steps = warmup_steps
+
+    def __call__(self, step):
+        arg1 = tf.math.rsqrt(step)
+        arg2 = step * (self.warmup_steps ** -1.5)
+        return tf.math.rsqrt(self.d_model) * tf.math.minimum(arg1, arg2)
+
+# Positional Embedding Layer
+class PositionalEmbedding(Layer):
+    def __init__(self, vocab_size, d_model, max_len):
+        super(PositionalEmbedding, self).__init__()
+        self.d_model = d_model
+        self.embedding = Embedding(vocab_size, d_model, mask_zero=True)
+        self.pos_encoding = self.positional_encoding(max_len, self.d_model)
+
+    def positional_encoding(self, max_len, d_model):
+        pos_encoding = np.array([
+            [pos / np.power(10000, 2 * (j // 2) / d_model) for j in range(d_model)]
+            if pos != 0 else np.zeros(d_model) for pos in range(max_len)])
+        pos_encoding[1:, 0::2] = np.sin(pos_encoding[1:, 0::2])
+        pos_encoding[1:, 1::2] = np.cos(pos_encoding[1:, 1::2])
+        return tf.cast(pos_encoding, dtype=tf.float32)
+
+    def call(self, inputs):
+        length = tf.shape(inputs)[1]
+        x = self.embedding(inputs)
+        x *= tf.math.sqrt(tf.cast(self.d_model, tf.float32))
+        x = x + self.pos_encoding[tf.newaxis, :length, :]
+        return x
+
+# Transformer Encoder Layer
+class TransformerEncoder(Layer):
+    def __init__(self, d_model, num_heads, ff_dim, rate=0.1):
+        super(TransformerEncoder, self).__init__()
+        self.att = tf.keras.layers.MultiHeadAttention(num_heads=num_heads, key_dim=d_model)
+        self.ffn = tf.keras.Sequential(
+            [Dense(ff_dim, activation='relu'), Dense(d_model)]
+        )
+        self.layernorm1 = LayerNormalization(epsilon=1e-6)
+        self.layernorm2 = LayerNormalization(epsilon=1e-6)
+        self.dropout1 = Dropout(rate)
+        self.dropout2 = Dropout(rate)
+
+    def call(self, inputs, training):
+        attn_output = self.att(inputs, inputs)
+        attn_output = self.dropout1(attn_output, training=training)
+        out1 = self.layernorm1(inputs + attn_output)
+        ffn_output = self.ffn(out1)
+        ffn_output = self.dropout2(ffn_output, training=training)
+        return self.layernorm2(out1 + ffn_output)
+
+# Transformer Decoder Layer
+class TransformerDecoder(Layer):
+    def __init__(self, d_model, num_heads, ff_dim, rate=0.1):
+        super(TransformerDecoder, self).__init__()
+        self.att1 = tf.keras.layers.MultiHeadAttention(num_heads=num_heads, key_dim=d_model)
+        self.att2 = tf.keras.layers.MultiHeadAttention(num_heads=num_heads, key_dim=d_model)
+        self.ffn = tf.keras.Sequential(
+            [Dense(ff_dim, activation='relu'), Dense(d_model)]
+        )
+        self.layernorm1 = LayerNormalization(epsilon=1e-6)
+        self.layernorm2 = LayerNormalization(epsilon=1e-6)
+        self.layernorm3 = LayerNormalization(epsilon=1e-6)
+        self.dropout1 = Dropout(rate)
+        self.dropout2 = Dropout(rate)
+        self.dropout3 = Dropout(rate)
+
+    def call(self, inputs, enc_output, training, look_ahead_mask, padding_mask):
+        attn1 = self.att1(inputs, inputs, attention_mask=look_ahead_mask)
+        attn1 = self.dropout1(attn1, training=training)
+        out1 = self.layernorm1(inputs + attn1)
+        attn2 = self.att2(out1, enc_output, attention_mask=padding_mask)
+        attn2 = self.dropout2(attn2, training=training)
+        out2 = self.layernorm2(out1 + attn2)
+        ffn_output = self.ffn(out2)
+        ffn_output = self.dropout3(ffn_output, training=training)
+        return self.layernorm3(out2 + ffn_output)
+
+# Transformer Model
+class Transformer(Model):
+    def __init__(self, vocab_size_enc, vocab_size_dec, d_model, num_heads, ff_dim, max_len, rate=0.1):
+        super(Transformer, self).__init__()
+        self.encoder = PositionalEmbedding(vocab_size_enc, d_model, max_len)
+        self.decoder = PositionalEmbedding(vocab_size_dec, d_model, max_len)
+        self.enc_layers = [TransformerEncoder(d_model, num_heads, ff_dim, rate) for _ in range(4)]
+        self.dec_layers = [TransformerDecoder(d_model, num_heads, ff_dim, rate) for _ in range(4)]
+        self.final_layer = Dense(vocab_size_dec, activation='softmax')
+
+    def call(self, inp, tar, training, enc_padding_mask, look_ahead_mask, dec_padding_mask):
+        enc_output = self.encoder(inp)
+        for i in range(len(self.enc_layers)):
+            enc_output = self.enc_layers[i](enc_output, training)
+        dec_output = self.decoder(tar)
+        for i in range(len(self.dec_layers)):
+            dec_output = self.dec_layers[i](dec_output, enc_output, training, look_ahead_mask, dec_padding_mask)
+        final_output = self.final_layer(dec_output)
+        return final_output
+
+# Data Preprocessing
+def load_data(file_path):
+    data = pd.read_csv(file_path, sep='\t', header=None, names=['English', 'Tamil'])
+    return data
+
+def tokenize_data(data, max_words=10000, max_len=50):
+    tokenizer_en = Tokenizer(num_words=max_words, oov_token='<OOV>')
+    tokenizer_en.fit_on_texts(data['English'])
+    tokenizer_ta = Tokenizer(num_words=max_words, oov_token='<OOV>')
+    tokenizer_ta.fit_on_texts(data['Tamil'])
+    
+    en_sequences = tokenizer_en.texts_to_sequences(data['English'])
+    ta_sequences = tokenizer_ta.texts_to_sequences(data['Tamil'])
+    
+    en_padded = pad_sequences(en_sequences, maxlen=max_len, padding='post')
+    ta_padded = pad_sequences(ta_sequences, maxlen=max_len, padding='post')
+    
+    return en_padded, ta_padded, tokenizer_en, tokenizer_ta
+
+def create_masks(inp, tar):
+    enc_padding_mask = tf.cast(tf.math.equal(inp, 0), tf.float32)[:, tf.newaxis, tf.newaxis, :]
+    look_ahead_mask = 1 - tf.linalg.band_part(tf.ones((tf.shape(tar)[1], tf.shape(tar)[1])), -1, 0)
+    dec_padding_mask = tf.cast(tf.math.equal(inp, 0), tf.float32)[:, tf.newaxis, tf.newaxis, :]
+    return enc_padding_mask, look_ahead_mask, dec_padding_mask
+
+# Load and Preprocess Data
+data = load_data('path_to_dataset.csv')
+en_padded, ta_padded, tokenizer_en, tokenizer_ta = tokenize_data(data)
+
+# Split Data
+train_en = en_padded[:180000]
+train_ta = ta_padded[:180000]
+test_en = en_padded[180000:]
+test_ta = ta_padded[180000:]
+
+# Create Model
+transformer = Transformer(
+    vocab_size_enc=len(tokenizer_en.word_index) + 1,
+    vocab_size_dec=len(tokenizer_ta.word_index) + 1,
+    d_model=LATENT_DIM,
+    num_heads=NUM_HEADS,
+    ff_dim=FF_DIM,
+    max_len=MAX_SEQUENCE_LENGTH
+)
+
+# Compile Model
+learning_rate = CustomSchedule(LATENT_DIM)
+optimizer = Adam(learning_rate, beta_1=0.9, beta_2=0.98, epsilon=1e-9)
+transformer.compile(optimizer=optimizer, loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+
+# Train Model
+transformer.fit(
+    [train_en, train_ta[:, :-1]],
+    train_ta[:, 1:],
+    batch_size=BATCH_SIZE,
+    epochs=EPOCHS,
+    validation_data=([test_en, test_ta[:, :-1]], test_ta[:, 1:]),
+    callbacks=[EarlyStopping(monitor='val_loss', patience=3)]
+)
+```
+------------------------------------- 45
