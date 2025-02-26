@@ -10,7 +10,7 @@ This artifact for our paper "Empowering AI to Generate Better AI Code: Guided Ge
 We introduce DLCodeGen, a novel planning guided deep learning code generation method. Our approach
  involves training a model on a meticulously curated parallel corpus to produce solution plans that align precisely with user requirements, ensuring the structural consistency and logical coherence of the generated code. A  comparative learning mechanism is subsequently employed to integrate outputs from Code RAG and Template RAG, significantly enhancing the quality of the final code.
 <p align="center">
-  <img src="./_images/approach.png" alt="approach" width="700">
+  <img src="_images/approach.png" alt="approach" width="700">
 </p>
 
 ## Benchmark
